@@ -86,12 +86,6 @@
         h.textContent = item.hint;
         txt.appendChild(h);
       }
-      if (item.naHint) {
-        const h = document.createElement('small');
-        h.className = 'item-hint strong';
-        h.textContent = item.naHint;
-        txt.appendChild(h);
-      }
       legend.append(num, txt);
       fs.appendChild(legend);
 
@@ -452,7 +446,7 @@
 
     const css = getComputedStyle(document.body);
     // SVG 的 presentation attribute 里用 var() 各浏览器支持不齐，先在 JS 里解析成实际色值
-    const cAccent  = css.getPropertyValue('--accent').trim()  || '#4f7d8c';
+    const cAccent  = css.getPropertyValue('--accent').trim()  || '#426b78';
     const cLine    = css.getPropertyValue('--line').trim()    || '#e6e0d6';
     const cMuted   = css.getPropertyValue('--muted').trim()   || '#857e74';
     const cSurface = css.getPropertyValue('--surface').trim() || '#ffffff';
@@ -563,13 +557,16 @@
 
   function exportCSV() {
     const r = current.result;
-    const head = ['日期', '编号', '基线', '总分', 'SD', 'IR', 'SR', '严重度分层'];
+    const naIds = current.raw.map((v, i) => v === 'na' ? OQ_ITEMS[i].id : null).filter(Boolean);
+    const head = ['日期', '编号', '基线', '总分', 'SD', 'IR', 'SR', '严重度分层', '选了不适用的题号'];
     const row  = [current.date, current.name, current.baseline ? '是' : '否',
-                  r.total, r.dims.SD, r.dims.IR, r.dims.SR, r.severity.label];
+                  r.total, r.dims.SD, r.dims.IR, r.dims.SR, r.severity.label,
+                  naIds.join(' ')];
+    // 逐题导出纸质题本的等价勾选值，未做反向计分，可直接与纸笔施测数据对齐。
     OQ_ITEMS.forEach((it, i) => {
       head.push(`q${it.id}(原始未反向)`);
-      const v = current.raw[i];
-      row.push(v === 'na' ? '不适用' : v === null ? '' : v);
+      const v = oqPaperValue(i, current.raw[i]);
+      row.push(v === null ? '' : v);
     });
     const esc = (v) => `"${String(v).replace(/"/g, '""')}"`;
     const csv = '﻿' + [head.map(esc).join(','), row.map(esc).join(',')].join('\r\n');
@@ -584,8 +581,11 @@
       date: current.date,
       name: current.name || null,
       baseline: current.baseline,
-      raw_responses_note: '0–4 为作答者勾选的原始值，未做反向计分；"na" 为「不适用」',
+      raw_responses_note: '页面上记录的值：0–4 为勾选值，"na" 为「不适用」，null 为漏答。均未反向计分',
       raw: current.raw,
+      paper_equivalent_note: '把「不适用」换算成纸质题本应勾的值（正向题 0，反向题 4），仍未反向计分',
+      paper_equivalent: current.raw.map((v, i) => oqPaperValue(i, v)),
+      na_items: current.raw.map((v, i) => v === 'na' ? OQ_ITEMS[i].id : null).filter(Boolean),
       scored_note: '已完成反向计分与漏答填补',
       scored: r.scored,
       total: r.total,

@@ -10,7 +10,7 @@
   --muted:     #857e74;
   --line:      #e6e0d6;
   --line-soft: #f0ece4;
-  --accent:    #4f7d8c;
+  --accent:    #426b78;   /* 白字压在上面时对比度约 6:1，留出余量，不贴着 AA 的 4.5 */
   --accent-ink:#ffffff;
   --accent-bg: #eaf1f3;
   --warm:      #a8734a;
@@ -269,7 +269,9 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   border: 1px solid var(--line); border-radius: 10px;
   transition: background .12s ease, border-color .12s ease, color .12s ease;
 }
-.item.answered .opt span { background: var(--surface); }
+/* 只改「未选中」项的底色。写成 .item.answered .opt span 会因为优先级更高
+ * （0,3,1 > 0,2,2）把下面选中态的背景盖掉，导致选中项变成同色字同色底。 */
+.item.answered .opt input:not(:checked) + span { background: var(--surface); }
 .opt input:checked + span {
   background: var(--accent); border-color: var(--accent);
   color: var(--accent-ink); font-weight: 600;
@@ -279,6 +281,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* 第 37 题的「不适用」：另起一行整行，避免挤成六列 */
 .opt-na { margin-top: 6px; }
 .opt-na span { min-height: 46px; font-size: 13.5px; border-style: dashed; }
+.opt-na input:checked + span { border-style: solid; }
 
 @media (max-width: 344px) {
   .opt span { font-size: 12px; min-height: 56px; }

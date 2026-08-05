@@ -26,6 +26,20 @@ const OQ_SEVERITY = [
 function oqReverse(v) { return 4 - v; }
 
 /**
+ * 「不适用」在纸质题本上应勾的选项值。
+ * 纸质题本逐题印「如不适用请填 X」，X 随计分方向不同：
+ *   正向题 → "不是"（0）；反向题 → "总是这样"（4，反转后为 0）。
+ * 两种写法算出来都是 0 分困扰，页面上统一成一个「不适用」按钮，
+ * 导出时再换算回纸质题本的等价值，方便与纸笔施测的数据对齐。
+ * @param {number} i 题目索引（0-based）
+ * @param {number|'na'|null} v 页面上记录的值
+ */
+function oqPaperValue(i, v) {
+  if (v === 'na') return OQ_ITEMS[i].reverse ? 4 : 0;
+  return v;
+}
+
+/**
  * 计分主函数。
  * @param {Array<number|null|'na'>} raw 长度 45，索引 0 对应第 1 题。
  *        数字 0–4 为作答者勾选的原始值；null 表示漏答；
@@ -39,8 +53,8 @@ function oqScore(raw) {
   OQ_ITEMS.forEach((item, i) => {
     const v = raw[i];
     if (v === 'na') {
-      // 「不适用」一律按 0 分困扰记。第 37 题是反向题，
-      // 等价于勾「几乎总是」后反转 —— 而不是勾「不是」。
+      // 「不适用」一律按 0 分困扰记，正向题反向题都一样。
+      // 反向题（第 37 题）若让来访者勾「不是」，反转后会变成 4 分，凭空多出困扰。
       scored[i] = 0;
       return;
     }

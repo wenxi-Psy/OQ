@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <meta name="robots" content="noindex">
 <title>OQ-45.2 心理咨询效果问卷</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f7d8c'/%3E%3Cpath d='M8 21.5 L13.5 16 L18.5 19 L24 10' fill='none' stroke='%23fff' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23426b78'/%3E%3Cpath d='M8 21.5 L13.5 16 L18.5 19 L24 10' fill='none' stroke='%23fff' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
@@ -78,6 +78,7 @@
     <div class="form-head">
       <h1>过去 7 天，以下情况符合你吗？</h1>
       <p class="lede">请为每一题选择一个最接近的答案。</p>
+      <p class="fieldnote">有几道题的下方多一个<strong>「不适用」</strong>按钮。只有当题目描述的情况在你身上<strong>确实不存在</strong>时才选它（比如目前没有恋爱关系、不喝酒）；如果情况存在、只是程度很轻，请照常在上面五个选项里选。</p>
       <p class="kbd-tip">提示：可以用键盘 <kbd>1</kbd>–<kbd>5</kbd> 快速作答。</p>
     </div>
 
@@ -170,7 +171,7 @@
     <!-- 导出 -->
     <section class="card noprint">
       <h2>保存这份结果</h2>
-      <p class="fieldnote">建议导出一份带到会谈中。CSV 里的逐题分数是你<strong>勾选的原始值（未做反向计分）</strong>，录入时不要重复反转。</p>
+      <p class="fieldnote">建议导出一份带到会谈中。CSV 里的逐题分数是<strong>纸质题本的等价勾选值，未做反向计分</strong>，录入时不要重复反转。选了「不适用」的题会按题本规则换算（正向题记 0，反向题记 4），另有一列列出这些题号。</p>
       <div class="btnrow">
         <button type="button" id="btn-copy">复制为文字</button>
         <button type="button" id="btn-csv">下载 CSV</button>
