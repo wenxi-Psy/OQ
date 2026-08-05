@@ -1,7 +1,9 @@
 # OQ-45.2 在线填写与结果呈现
 
 心理咨询效果问卷（Outcome Questionnaire, OQ-45.2）中文版的网页版填写与计分工具。
-纯静态页面，无后端、无构建步骤、无第三方依赖，可直接部署到 GitHub Pages。
+纯静态页面，无后端、无构建步骤、无第三方依赖，部署在 GitHub Pages。
+
+**页面地址**：<https://wenxi-psy.github.io/OQ/>
 
 **量表版本**：秦佑凤、胡姝婧（2008）中文译本，全 45 题。
 
@@ -13,8 +15,19 @@
 
 1. 打开仓库 **Settings → Pages**
 2. **Source** 选 `Deploy from a branch`
-3. **Branch** 选本分支（或合并到 `main` 后选 `main`），目录选 `/ (root)`
-4. 保存，等约一分钟，页面会出现在 `https://<用户名>.github.io/<仓库名>/`
+3. **Branch** 选仓库当前的默认分支（目前是 `claude/oq45-scale-webpage-qn82uh`），
+   目录选 `/ (root)`
+4. 保存，等约一分钟，页面即上线于 <https://wenxi-psy.github.io/OQ/>
+
+> 地址规则：主机名部分是**小写**的用户名（`wenxi-psy`），路径部分保留仓库名的大小写（`OQ`）。
+> 之后若把代码合并到 `main` 并把默认分支改回 `main`，记得在 Settings → Pages 里同步改
+> Branch，页面地址不变。
+
+### 自定义域名（可选）
+
+如果要用自己的域名，在 **Settings → Pages → Custom domain** 填入域名，GitHub 会在仓库根目录
+生成一个 `CNAME` 文件；同时在域名服务商处把该域名 CNAME 到 `wenxi-psy.github.io`。
+建议一并勾选 **Enforce HTTPS**。
 
 ---
 
