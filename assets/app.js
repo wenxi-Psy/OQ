@@ -9,6 +9,72 @@
   const answers = new Array(45).fill(null);   // 0–4 | 'na' | null
   let current = null;                          // 当前这次的计分结果
 
+  /* ══════════ 运行环境 ══════════ */
+
+  /* App 内置浏览器（WebView）的存储是按 App 隔离的：在微信里填的记录，
+   * 换到 Safari / Chrome 就看不到；部分 App 还会在关闭后清掉。
+   * UA 匹配是启发式的，只用来提醒，不影响任何功能。 */
+  const IN_APP_BROWSERS = [
+    { re: /MicroMessenger/i,                     name: '微信' },
+    { re: /\bQQ\/[\d.]+/i,                       name: 'QQ' },
+    { re: /Weibo/i,                              name: '微博' },
+    { re: /AlipayClient/i,                       name: '支付宝' },
+    { re: /DingTalk/i,                           name: '钉钉' },
+    { re: /Lark|Feishu/i,                        name: '飞书' },
+    { re: /xhsdiscover|XHS/i,                    name: '小红书' },
+    { re: /aweme|BytedanceWebview/i,             name: '抖音' },
+    { re: /FBAN|FBAV|Instagram|Line\//i,         name: '社交 App' },
+  ];
+
+  function inAppBrowser() {
+    const ua = navigator.userAgent || '';
+    const hit = IN_APP_BROWSERS.find((x) => x.re.test(ua));
+    return hit ? hit.name : null;
+  }
+
+  /* 真写一次再读回来。无痕模式下 localStorage 存在但写入会抛错，
+   * 只判断 'localStorage' in window 是不够的。 */
+  function storageWorks() {
+    try {
+      const k = '__oq_probe__';
+      localStorage.setItem(k, '1');
+      const ok = localStorage.getItem(k) === '1';
+      localStorage.removeItem(k);
+      return ok;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function renderEnvWarning() {
+    const card = $('env-warn'), body = $('env-warn-body');
+    const app = inAppBrowser();
+    const canStore = storageWorks();
+    if (canStore && !app) { card.hidden = true; return; }
+
+    body.textContent = '';
+    const add = (html) => {
+      const p = document.createElement('p');
+      p.innerHTML = html;
+      body.appendChild(p);
+    };
+
+    if (!canStore) {
+      $('env-warn-title').textContent = '这台设备上无法保存记录';
+      add('这个浏览器不允许网页保存数据（常见于<strong>无痕/隐私模式</strong>）。'
+        + '你可以正常填写和查看结果，但<strong>这次的结果不会被保存</strong>，也不会有变化趋势图。');
+      add('如果需要追踪变化，请换成普通模式再填；或者在看完结果后用「保存为图片」把结果存下来。');
+    } else if (app) {
+      $('env-warn-title').textContent = `你正在 ${app} 里打开这个页面`;
+      add(`记录会存在 ${app} 自带的浏览器里，<strong>换用手机自带的浏览器就看不到了</strong>，`
+        + `部分 App 还会在关闭后清除。`);
+      add(`想长期看到自己的变化趋势，建议点右上角的「···」选择<strong>「在浏览器中打开」</strong>，`
+        + `并且以后<strong>每次都用同一个浏览器</strong>填写。`);
+      add('只填这一次、不需要对比的话，在这里直接填也没问题。');
+    }
+    card.hidden = false;
+  }
+
   /* ══════════ 本机记录 ══════════ */
 
   function loadRecords() {
@@ -371,27 +437,90 @@
   function renderCompare() {
     const card = $('compare-card'), body = $('compare-body');
     body.textContent = '';
+    card.hidden = false;   // 没有历史时也显示，给出手动输入的入口
 
     const list = loadRecords()
       .filter((x) => x.id !== current.id)
       .sort((a, b) => a.ts.localeCompare(b.ts));
 
-    if (!list.length) { card.hidden = true; return; }
-    card.hidden = false;
+    if (list.length) {
+      const prev = list[list.length - 1];
+      // 结果图片要用到，存一份
+      current.compare = Object.assign(oqCompare(prev.total, current.total), { t1Date: prev.date });
+      body.appendChild(compareBlock('上一次', prev));
 
-    const prev = list[list.length - 1];
-    body.appendChild(compareBlock('上一次', prev));
+      const base = list.find((x) => x.baseline);
+      if (base && base.id !== prev.id) {
+        body.appendChild(compareBlock('基线', base));
+      }
 
-    const base = list.find((x) => x.baseline);
-    if (base && base.id !== prev.id) {
-      body.appendChild(compareBlock('基线', base));
+      const tail = document.createElement('p');
+      tail.className = 'fieldnote';
+      tail.innerHTML = '判定用中国常模：可信变化指数 <strong>17</strong>、划界分 <strong>62</strong>。'
+        + '变化量小于 17 分时，还不能排除测量误差和日常心境波动的影响。';
+      body.appendChild(tail);
+    } else {
+      const none = document.createElement('p');
+      none.className = 'fieldnote';
+      none.textContent = '这个浏览器里还没有以前的记录，所以暂时没法比较。'
+        + '如果你以前在别的设备或浏览器上填过，可以在下面直接输入上次的总分。';
+      body.appendChild(none);
     }
 
-    const tail = document.createElement('p');
-    tail.className = 'fieldnote';
-    tail.innerHTML = '判定用中国常模：可信变化指数 <strong>17</strong>、划界分 <strong>62</strong>。'
-      + '变化量小于 17 分时，还不能排除测量误差和日常心境波动的影响。';
-    body.appendChild(tail);
+    body.appendChild(manualCompare(list.length > 0));
+  }
+
+  /* 换过设备/浏览器时，允许手动输入上次总分来做判定 */
+  function manualCompare(hasHistory) {
+    const box = document.createElement('details');
+    box.className = 'manual';
+    box.open = !hasHistory;
+
+    const sum = document.createElement('summary');
+    sum.textContent = '手动输入上次的总分来对比';
+    box.appendChild(sum);
+
+    const row = document.createElement('div');
+    row.className = 'manual-body';
+
+    const field = document.createElement('label');
+    field.className = 'field';
+    const cap = document.createElement('span');
+    cap.textContent = '上次总分（0–180）';
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.min = '0'; input.max = '180'; input.step = '1';
+    input.inputMode = 'numeric';
+    input.placeholder = '例如 95';
+    field.append(cap, input);
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = '对比';
+
+    const out = document.createElement('div');
+    out.className = 'manual-out';
+
+    const run = () => {
+      out.textContent = '';
+      const v = Number(input.value);
+      if (input.value.trim() === '' || !Number.isFinite(v) || v < 0 || v > 180) {
+        const err = document.createElement('p');
+        err.className = 'fieldnote';
+        err.textContent = '请输入 0 到 180 之间的整数。';
+        out.appendChild(err);
+        return;
+      }
+      const rec = { date: '手动输入', total: Math.round(v) };
+      current.compare = Object.assign(oqCompare(rec.total, current.total), { t1Date: rec.date });
+      out.appendChild(compareBlock('你输入的上次记录', rec));
+    };
+    btn.addEventListener('click', run);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); run(); } });
+
+    row.append(field, btn);
+    box.append(row, out);
+    return box;
   }
 
   function compareBlock(label, rec) {
@@ -601,6 +730,263 @@
     download(fileStem() + '.json', JSON.stringify(data, null, 2), 'application/json');
   }
 
+  /* 全部记录的导出 / 导入，用于换设备或换浏览器 */
+  function exportAll() {
+    const list = loadRecords();
+    if (!list.length) { window.alert('本机还没有任何记录。'); return; }
+    const data = { format: 'oq45-records', version: 1, exported_at: new Date().toISOString(), records: list };
+    // 文件名用 ASCII：部分安卓文件管理器和聊天软件会弄坏中文文件名
+    download('OQ45_all_records_' + todayISO() + '.json', JSON.stringify(data, null, 2), 'application/json');
+  }
+
+  function importAll(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      let incoming;
+      try {
+        const parsed = JSON.parse(String(reader.result));
+        incoming = Array.isArray(parsed) ? parsed : parsed.records;
+      } catch (e) { incoming = null; }
+
+      if (!Array.isArray(incoming)) {
+        window.alert('这个文件读不出记录。请选择用「导出全部记录」生成的 JSON 文件。');
+        return;
+      }
+      const valid = incoming.filter((r) =>
+        r && typeof r.total === 'number' && Array.isArray(r.raw) && r.raw.length === 45 && r.ts);
+      if (!valid.length) {
+        window.alert('文件里没有可用的 OQ-45.2 记录。');
+        return;
+      }
+
+      const existing = loadRecords();
+      const seen = new Set(existing.map((r) => r.id));
+      const added = valid.filter((r) => !seen.has(r.id));
+      const merged = existing.concat(added).sort((a, b) => a.ts.localeCompare(b.ts));
+
+      try {
+        localStorage.setItem(STORE_KEY, JSON.stringify(merged));
+      } catch (e) {
+        window.alert('导入失败：这个浏览器不允许保存数据。');
+        return;
+      }
+      refreshCount();
+      window.alert(`导入完成：新增 ${added.length} 份`
+        + (valid.length - added.length ? `，跳过 ${valid.length - added.length} 份重复记录` : '')
+        + `。本机现有 ${merged.length} 份。`);
+    };
+    reader.onerror = () => window.alert('文件读取失败，请重试。');
+    reader.readAsText(file);
+  }
+
+  /* ══════════ 结果图片 ══════════
+   * 手机浏览器的 window.print() 多数只给打印机选项，App 内置浏览器里常常
+   * 完全没反应。生成一张图片让用户长按保存，是移动端最可靠的带走方式。
+   * 用 canvas 手绘而不是引第三方库：中文由系统字体渲染，不需要嵌字体。 */
+
+  const IMG_W = 640;                    // 逻辑宽度，最终按 2 倍像素输出
+  const IMG_PAD = 40;
+  const FONT = '-apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", '
+             + '"Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif';
+  // 图片固定用浅色，便于打印和在深色聊天界面里查看
+  const IMG_C = {
+    bg: '#ffffff', ink: '#2c2a26', soft: '#56514a', muted: '#8a837a',
+    line: '#e6e0d6', lineSoft: '#f2eee7', accent: '#426b78', warm: '#a8734a',
+  };
+
+  function setFont(ctx, weight, size) { ctx.font = `${weight} ${size}px ${FONT}`; }
+
+  /* 按字符折行，中英文都适用 */
+  function wrapText(ctx, text, maxW) {
+    const lines = [];
+    let line = '';
+    for (const ch of text) {
+      if (ctx.measureText(line + ch).width > maxW && line) { lines.push(line); line = ch; }
+      else line += ch;
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+
+  /**
+   * 把结果画到 ctx 上，返回内容总高度。
+   * @param {boolean} dry 只量高度不落笔（用来确定画布尺寸）
+   */
+  function drawCard(ctx, dry) {
+    const r = current.result;
+    const W = IMG_W, P = IMG_PAD, CW = W - P * 2;
+    let y = 0;
+
+    const text = (str, x, size, weight, color, align) => {
+      setFont(ctx, weight, size);
+      if (!dry) {
+        ctx.fillStyle = color;
+        ctx.textAlign = align || 'left';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillText(str, x, y);
+      }
+    };
+    const rect = (x, yy, w, h, color, radius) => {
+      if (dry) return;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      if (radius && ctx.roundRect) ctx.roundRect(x, yy, w, h, radius);
+      else ctx.rect(x, yy, w, h);
+      ctx.fill();
+    };
+    const rule = () => { rect(P, y, CW, 1, IMG_C.lineSoft); y += 1; };
+    const bar = (val, max, cutoff) => {
+      const h = 12;
+      rect(P, y, CW, h, IMG_C.lineSoft, h / 2);
+      rect(P, y, Math.max(h, CW * Math.min(1, val / max)), h, IMG_C.accent, h / 2);
+      const cx = P + CW * (cutoff / max);
+      rect(cx - 1, y - 4, 2, h + 8, IMG_C.soft);
+      // 刻度线比条高出 4px，标签基线要让开这段，否则字会压在条上
+      y += h + 22;
+      // 标签贴边时收进来，避免超出画布
+      const lblX = Math.min(Math.max(cx, P + 30), W - P - 30);
+      text(`参考线 ${cutoff}`, lblX, 15, '400', IMG_C.muted, 'center');
+      y += 12;
+    };
+
+    // ── 抬头
+    y += 54;
+    text('OQ-45.2 心理咨询效果问卷', P, 20, '400', IMG_C.muted);
+    y += 40;
+    text('我的结果', P, 34, '600', IMG_C.ink);
+    y += 30;
+    const meta = [current.date, current.name && ('编号 ' + current.name),
+                  current.baseline && '基线'].filter(Boolean).join('　·　');
+    text(meta, P, 19, '400', IMG_C.muted);
+    y += 28;
+    rule();
+    y += 34;
+
+    // ── 总分
+    text('总分', P, 20, '600', IMG_C.ink);
+    y += 62;
+    text(String(r.total), P, 68, '300', IMG_C.ink);
+    setFont(ctx, '300', 68);
+    const numW = ctx.measureText(String(r.total)).width;
+    text('/ 180', P + numW + 14, 20, '400', IMG_C.muted);
+    y += 22;
+    bar(r.total, 180, 62);
+    y += 14;
+    text(r.aboveCutoff ? '总分达到或超过划界分 62' : '总分低于划界分 62',
+         P, 21, '600', r.aboveCutoff ? IMG_C.warm : IMG_C.accent);
+    y += 26;
+    text(`严重度分层：${r.severity.label}（美国常模参考）`, P, 17, '400', IMG_C.muted);
+    y += 30;
+    rule();
+    y += 34;
+
+    // ── 三个维度
+    text('三个方面', P, 20, '600', IMG_C.ink);
+    y += 12;
+    ['SD', 'IR', 'SR'].forEach((k) => {
+      const n = OQ_NORMS[k], v = r.dims[k];
+      y += 30;
+      text(`${n.label}（${k}）`, P, 18, '600', IMG_C.soft);
+      text(`${v} / ${n.max}`, W - P, 18, '400', IMG_C.muted, 'right');
+      y += 12;
+      bar(v, n.max, n.cutoff);
+    });
+    y += 4;
+    text('维度分只作定性线索，参考线取自美国常模', P, 15, '400', IMG_C.muted);
+    y += 30;
+
+    // ── 与上次比
+    if (current.compare) {
+      rule();
+      y += 34;
+      text('和上一次比', P, 20, '600', IMG_C.ink);
+      y += 34;
+      const c = current.compare;
+      const dir = c.delta > 0 ? '下降' : c.delta < 0 ? '上升' : '持平';
+      text(c.label, P, 24, '600',
+           c.key === 'deteriorated' ? IMG_C.warm : IMG_C.accent);
+      y += 30;
+      text(`与 ${c.t1Date}（总分 ${c.t1}）相比，总分${dir} ${Math.abs(c.delta)} 分`,
+           P, 18, '400', IMG_C.soft);
+      y += 24;
+      text('判定用中国常模：可信变化指数 17、划界分 62', P, 15, '400', IMG_C.muted);
+      y += 30;
+    }
+
+    // ── 关键题
+    if (r.critical.length) {
+      rule();
+      y += 34;
+      text('建议在会谈中谈到的几题', P, 20, '600', IMG_C.ink);
+      y += 12;
+      r.critical.forEach((c) => {
+        y += 28;
+        setFont(ctx, '400', 18);
+        const lines = wrapText(ctx, `第 ${c.id} 题　${c.text}`, CW - 90);
+        lines.forEach((ln, i) => {
+          text(ln, P, 18, '400', IMG_C.soft);
+          if (i === 0) text(c.label, W - P, 16, '600', IMG_C.warm, 'right');
+          if (i < lines.length - 1) y += 26;
+        });
+      });
+      y += 30;
+    }
+
+    // ── 页脚
+    rule();
+    y += 30;
+    setFont(ctx, '400', 15);
+    const foot = 'OQ-45.2 是效果监测工具，不是诊断工具。分数高低不等于任何诊断，'
+               + '结果需要由受过训练的临床工作者解读。划界分 62、可信变化指数 17 '
+               + '来自中国常模（李钰静, 2010）。';
+    wrapText(ctx, foot, CW).forEach((ln) => {
+      text(ln, P, 15, '400', IMG_C.muted);
+      y += 22;
+    });
+    y += 22;
+    return y;
+  }
+
+  function buildImage() {
+    // 先在一张临时画布上量高度，再按真实尺寸重画
+    const probe = document.createElement('canvas').getContext('2d');
+    const h = Math.ceil(drawCard(probe, true));
+
+    const scale = 2;
+    const cv = document.createElement('canvas');
+    cv.width = IMG_W * scale;
+    cv.height = h * scale;
+    const ctx = cv.getContext('2d');
+    ctx.scale(scale, scale);
+    ctx.fillStyle = IMG_C.bg;
+    ctx.fillRect(0, 0, IMG_W, h);
+    drawCard(ctx, false);
+    return cv;
+  }
+
+  function showImage() {
+    let url;
+    try {
+      url = buildImage().toDataURL('image/png');
+    } catch (e) {
+      window.alert('图片生成失败，请改用「复制为文字」。');
+      return;
+    }
+    $('img-out').src = url;
+    $('img-download').dataset.url = url;
+    $('img-tip').textContent = (navigator.maxTouchPoints > 0 || 'ontouchstart' in window)
+      ? '长按图片即可保存到相册，或直接转发给咨询师'
+      : '右键图片可另存为，也可以点下面的「下载图片」';
+    $('img-overlay').hidden = false;
+    document.body.style.overflow = 'hidden';
+  }
+
+  function hideImage() {
+    $('img-overlay').hidden = true;
+    $('img-out').removeAttribute('src');
+    document.body.style.overflow = '';
+  }
+
   async function copyText() {
     const text = resultText();
     try {
@@ -635,6 +1021,7 @@
     buildItems();
     updateProgress();
     refreshCount();
+    renderEnvWarning();
 
     $('btn-start').addEventListener('click', () => showScreen('screen-form'));
     $('btn-back-intro').addEventListener('click', () => showScreen('screen-intro'));
@@ -644,6 +1031,31 @@
     $('btn-csv').addEventListener('click', exportCSV);
     $('btn-json').addEventListener('click', exportJSON);
     $('btn-print').addEventListener('click', () => window.print());
+    $('btn-image').addEventListener('click', showImage);
+
+    $('btn-export-all').addEventListener('click', exportAll);
+    $('btn-import').addEventListener('click', () => $('import-file').click());
+    $('import-file').addEventListener('change', (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (f) importAll(f);
+      e.target.value = '';          // 允许重复选同一个文件
+    });
+
+    $('img-close').addEventListener('click', hideImage);
+    $('img-overlay').addEventListener('click', (e) => {
+      if (e.target === $('img-overlay')) hideImage();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !$('img-overlay').hidden) hideImage();
+    });
+    $('img-download').addEventListener('click', () => {
+      const a = document.createElement('a');
+      a.href = $('img-download').dataset.url || '';
+      a.download = fileStem() + '.png';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    });
 
     $('btn-again').addEventListener('click', () => {
       resetForm();

@@ -30,11 +30,22 @@
       </ul>
     </section>
 
+    <!-- 内置浏览器 / 无法保存时显示 -->
+    <section class="card warn" id="env-warn" hidden>
+      <h2 id="env-warn-title">请先看一下</h2>
+      <div id="env-warn-body"></div>
+    </section>
+
     <section class="card privacy">
       <h2>关于你的数据</h2>
       <p><strong>你的作答不会上传到任何服务器</strong>，全部计算都在这个页面里完成。</p>
-      <p>为了让你下次能看到自己的变化趋势，每次的结果会<strong>自动保存在这台设备的浏览器里</strong>。如果你在共用的电脑或手机上填写，请在看完结果后点「清除本机记录」。</p>
+      <p>为了让你下次能看到自己的变化趋势，每次的结果会<strong>自动保存在这台设备的浏览器里</strong>。记录跟着<strong>浏览器</strong>走——换一个浏览器或换一台设备就看不到了。如果你在共用的电脑或手机上填写，请在看完结果后点「清除本机记录」。</p>
       <p class="storage-line">本机当前已保存 <strong id="intro-count">0</strong> 份记录。<button type="button" class="linkbtn" id="intro-clear">清除本机记录</button></p>
+      <div class="btnrow">
+        <button type="button" id="btn-import">导入以前的记录</button>
+      </div>
+      <input type="file" id="import-file" accept="application/json,.json" hidden>
+      <p class="fieldnote">换了设备或浏览器？在原来那台上填完后点「导出全部记录」，把文件拿过来在这里导入，趋势图就能接上。</p>
     </section>
 
     <section class="card">
@@ -171,14 +182,17 @@
     <!-- 导出 -->
     <section class="card noprint">
       <h2>保存这份结果</h2>
-      <p class="fieldnote">建议导出一份带到会谈中。CSV 里的逐题分数是<strong>纸质题本的等价勾选值，未做反向计分</strong>，录入时不要重复反转。选了「不适用」的题会按题本规则换算（正向题记 0，反向题记 4），另有一列列出这些题号。</p>
+      <p class="fieldnote">建议导出一份带到会谈中。<strong>手机上用「保存为图片」最稳</strong>——生成一张结果图，长按就能存进相册或直接发给咨询师。</p>
       <div class="btnrow">
+        <button type="button" class="wide" id="btn-image">保存为图片</button>
         <button type="button" id="btn-copy">复制为文字</button>
+        <button type="button" id="btn-print">打印 / 存 PDF</button>
         <button type="button" id="btn-csv">下载 CSV</button>
         <button type="button" id="btn-json">下载 JSON</button>
-        <button type="button" id="btn-print">打印 / 存 PDF</button>
       </div>
       <p class="copied" id="copied" hidden>已复制到剪贴板</p>
+      <p class="fieldnote" id="print-note">「打印 / 存 PDF」在电脑上可以选「另存为 PDF」；手机浏览器多数只给打印机选项，App 内置浏览器里往往完全没反应——手机请用「保存为图片」。</p>
+      <p class="fieldnote">CSV 里的逐题分数是<strong>纸质题本的等价勾选值，未做反向计分</strong>，录入时不要重复反转。选了「不适用」的题会按题本规则换算（正向题记 0，反向题记 4），另有一列列出这些题号。</p>
     </section>
 
     <section class="card sources">
@@ -191,12 +205,32 @@
       </ul>
     </section>
 
+    <section class="card noprint">
+      <h2>换设备或换浏览器</h2>
+      <p class="fieldnote">记录只存在当前这个浏览器里。要在别的设备上接着看趋势，把全部记录导出成一个文件，在新设备的说明页点「导入以前的记录」即可。</p>
+      <div class="btnrow">
+        <button type="button" id="btn-export-all">导出全部记录</button>
+      </div>
+    </section>
+
     <div class="btnrow noprint end-actions">
       <button type="button" id="btn-again">再填一次</button>
       <button type="button" class="linkbtn danger" id="btn-clear">清除本机记录</button>
     </div>
   </div>
 </main>
+
+<!-- 结果图片预览 -->
+<div class="overlay" id="img-overlay" hidden>
+  <div class="overlay-inner">
+    <p class="overlay-tip" id="img-tip">长按图片即可保存到相册</p>
+    <div class="overlay-scroll"><img id="img-out" alt="OQ-45.2 结果图片"></div>
+    <div class="btnrow">
+      <button type="button" id="img-download">下载图片</button>
+      <button type="button" id="img-close">关闭</button>
+    </div>
+  </div>
+</div>
 
 <script src="assets/items.js"></script>
 <script src="assets/score.js"></script>

@@ -111,6 +111,13 @@ kbd {
 .card li { margin-bottom: 10px; color: var(--ink-soft); font-size: 15px; }
 .card li:last-child { margin-bottom: 0; }
 
+/* 无项目符号的列表要撤掉上面那 20px 缩进。必须带 .card 前缀：
+ * 只写 .critical-list（0,1,0）会输给 .card ul（0,1,1），列表整体右移 20px。 */
+.card ul.hotlines,
+.card ul.critical-list { padding-left: 0; }
+.card ul.hotlines { margin: 12px 0; }
+.card ul.critical-list { margin-top: 14px; }
+
 .intro-head, .result-head, .form-head { margin-bottom: 24px; }
 .intro-head h1 { font-size: 34px; letter-spacing: .02em; }
 
@@ -128,6 +135,49 @@ kbd {
 .hotlines strong { font-variant-numeric: tabular-nums; letter-spacing: .02em; }
 
 .sources li { font-size: 13px; line-height: 1.6; }
+
+.warn { background: var(--warm-bg); border-color: var(--warm); }
+.warn h2 { color: var(--warm); }
+.warn p { color: var(--ink-soft); font-size: 15px; }
+.warn p:last-child { margin-bottom: 0; }
+
+/* 手动输入上次总分 */
+.manual { margin-top: 8px; border-top: 1px solid var(--line-soft); padding-top: 12px; }
+.manual summary {
+  font-size: 13px; color: var(--muted); cursor: pointer;
+  padding: 6px 0; min-height: 32px; list-style-position: inside;
+}
+.manual summary::marker { font-size: 11px; }
+.manual-body { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; margin-top: 8px; }
+.manual-body .field { flex: 1 1 140px; }
+.manual-body button {
+  flex: none; min-height: 44px; padding: 10px 18px; font-size: 14px;
+  color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 10px;
+}
+.manual-out { width: 100%; }
+.manual-out:empty { display: none; }
+
+/* 结果图片预览 */
+.overlay {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(0, 0, 0, .72);
+  display: flex; align-items: center; justify-content: center;
+  padding: calc(16px + env(safe-area-inset-top)) 12px calc(16px + env(safe-area-inset-bottom));
+}
+.overlay[hidden] { display: none; }
+.overlay-inner {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 14px; width: 100%; max-width: 460px;
+  max-height: 100%; display: flex; flex-direction: column; gap: 10px;
+}
+.overlay-tip { margin: 0; font-size: 13px; color: var(--muted); text-align: center; }
+.overlay-scroll { overflow: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; }
+.overlay-scroll img {
+  display: block; width: 100%; height: auto; border-radius: 8px;
+  border: 1px solid var(--line);
+}
+.overlay .btnrow { flex: none; }
 
 /* ── 表单控件 ── */
 .fields { display: grid; gap: 12px; }
@@ -178,6 +228,12 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
 }
 .btnrow button:active { background: var(--line-soft); }
+.btnrow button.wide {
+  flex: 1 1 100%;
+  color: var(--accent-ink); background: var(--accent); border-color: var(--accent);
+  font-weight: 600;
+}
+.btnrow button.wide:active { opacity: .85; background: var(--accent); }
 
 .linkbtn {
   display: inline-block; padding: 10px 4px; min-height: 44px;
