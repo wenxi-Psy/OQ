@@ -342,7 +342,7 @@
     $('total-fill').style.width = pct(r.total, 180) + '%';
     const gauge = $('total-gauge');
     gauge.querySelectorAll('.gauge-mark').forEach((n) => n.remove());
-    gauge.appendChild(markEl(OQ_NORMS.total.cutoff, 180, '划界分 62'));
+    gauge.appendChild(markEl(OQ_NORMS.total.cutoff, 180, '参考线 62'));
 
     const verdict = $('total-verdict');
     if (r.aboveCutoff) {
