@@ -631,8 +631,8 @@
 
     holder.appendChild(svg);
     $('trend-note').textContent = all.length > MAX_POINTS
-      ? `虚线是参考线 62，只显示最近 ${MAX_POINTS} 次（共 ${all.length} 次）。看自己的曲线怎么走，比和别人比更有意义。`
-      : '虚线是参考线 62。看自己的曲线怎么走，比和别人比更有意义。';
+      ? `虚线是参考线 62，曲线下行代表好转，只显示最近 ${MAX_POINTS} 次（共 ${all.length} 次）。`
+      : '虚线是参考线 62，曲线下行代表好转。看自己的曲线怎么走，比和别人比更有意义。';
   }
 
   /* 三个维度的趋势图。
@@ -769,7 +769,8 @@
     if (current.name) L.push('编号：' + current.name);
     if (current.baseline) L.push('（基线）');
     L.push('');
-    L.push(`总分：${r.total} / 180　（划界分 62，中国常模；${r.aboveCutoff ? '达到或超过' : '低于'}划界分）`);
+    L.push(`总分：${r.total} / 180　（参考线 62；${r.aboveCutoff ? '达到或超过' : '低于'}参考线）`);
+    L.push('分数越高，表示心理困扰越重、社会功能受损越明显。');
     L.push(`严重度分层：${r.severity.label}`);
     L.push('');
     ['SD', 'IR', 'SR'].forEach((k) => {
@@ -1104,9 +1105,12 @@
     y += 22;
     bar(r.total, 180, 62);
     y += 14;
+    // 顺序与网页一致：先说明读分方向，再给判定
+    text('分数越高，表示心理困扰越重、社会功能受损越明显', P, 15, '400', IMG_C.soft);
+    y += 26;
     text(r.aboveCutoff ? '达到或超过参考线 62' : '低于参考线 62',
          P, 21, '600', r.aboveCutoff ? IMG_C.warm : IMG_C.accent);
-    y += 26;
+    y += 24;
     text(`严重度分层：${r.severity.label}`, P, 17, '400', IMG_C.muted);
     y += 30;
     rule();
@@ -1133,7 +1137,7 @@
       y += 22;
     });
     y += 4;
-    text('这三项用来看困扰更集中在哪一块，请以总分为主', P, 15, '400', IMG_C.muted);
+    text('三项与总分方向一致，用来看困扰更集中在哪一块，请以总分为主', P, 15, '400', IMG_C.muted);
     y += 30;
 
     // ── 与上次比
@@ -1165,8 +1169,8 @@
       y += 26;
       chart(history);
       text(all.length > MAX_POINTS
-        ? `虚线是参考线 62　·　只显示最近 ${MAX_POINTS} 次（共 ${all.length} 次）`
-        : '虚线是参考线 62', P, 15, '400', IMG_C.muted);
+        ? `虚线是参考线 62，曲线下行代表好转　·　只显示最近 ${MAX_POINTS} 次（共 ${all.length} 次）`
+        : '虚线是参考线 62，曲线下行代表好转', P, 15, '400', IMG_C.muted);
       y += 30;
     }
 
@@ -1180,7 +1184,7 @@
       dimChart(dimHistory);
       setFont(ctx, '400', 15);
       wrapText(ctx, '三项的满分不同，换算成百分比才能画在同一张图上；'
-        + '图例里是本次的实际分数，虚线是参考线。', CW).forEach((ln) => {
+        + '图例里是本次的实际分数，虚线是参考线，曲线下行代表好转。', CW).forEach((ln) => {
         text(ln, P, 15, '400', IMG_C.muted);
         y += 22;
       });
