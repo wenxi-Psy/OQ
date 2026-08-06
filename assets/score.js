@@ -128,16 +128,16 @@ function oqCompare(t1, t2) {
 
   if (delta >= rci && t2 < cutoff) {
     key = 'recovered'; label = '恢复';
-    meaning = '变化幅度超过可信变化指数，且总分已低于划界分。';
+    meaning = '下降幅度足够大，而且总分已经低于参考线。';
   } else if (delta >= rci) {
     key = 'improved'; label = '改善';
-    meaning = '变化幅度超过可信变化指数，但总分仍在划界分以上。';
+    meaning = '下降幅度足够大，但总分仍在参考线以上。';
   } else if (delta <= -rci) {
     key = 'deteriorated'; label = '恶化';
-    meaning = '总分上升幅度超过可信变化指数。建议尽快与咨询师讨论。';
+    meaning = '总分明显上升了，建议尽快和咨询师聊聊。';
   } else {
     key = 'unchanged'; label = '无变化';
-    meaning = '变化幅度未超过可信变化指数，尚不能排除测量误差和心境波动。';
+    meaning = '变化不到 17 分，可能只是日常的起伏。';
   }
   return { key, label, meaning, delta, t1, t2 };
 }

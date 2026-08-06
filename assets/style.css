@@ -142,7 +142,23 @@ kbd {
 }
 .hotlines strong { font-variant-numeric: tabular-nums; letter-spacing: .02em; }
 
-.sources li { font-size: 13px; line-height: 1.6; }
+/* 三个维度各一句话的说明 */
+.card ul.dimdefs { padding-left: 0; margin: 18px 0 0; }
+.dimdefs li {
+  margin-bottom: 9px; font-size: 13.5px; line-height: 1.6; color: var(--muted);
+}
+.dimdefs b { color: var(--ink-soft); font-weight: 600; margin-right: 6px; }
+
+/* 常模出处折起来：来访者不必读，咨询师需要时展开 */
+details.sources { padding: 0; }
+details.sources > summary {
+  padding: 16px var(--pad); cursor: pointer;
+  font-size: 14px; color: var(--muted); list-style-position: inside;
+}
+details.sources > summary::marker { font-size: 11px; }
+details.sources[open] > summary { padding-bottom: 4px; }
+details.sources ul { padding: 0 var(--pad) 18px 34px; }
+.sources li { font-size: 12.5px; line-height: 1.6; }
 
 .warn { background: var(--warm-bg); border-color: var(--warm); }
 .warn h2 { color: var(--warm); }

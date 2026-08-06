@@ -60,17 +60,13 @@
     };
 
     if (!canStore) {
-      $('env-warn-title').textContent = '这台设备上无法保存记录';
-      add('这个浏览器不允许网页保存数据（常见于<strong>无痕/隐私模式</strong>）。'
-        + '你可以正常填写和查看结果，但<strong>这次的结果不会被保存</strong>，也不会有变化趋势图。');
-      add('如果需要追踪变化，请换成普通模式再填；或者在看完结果后用「保存为图片」把结果存下来。');
+      $('env-warn-title').textContent = '这次的结果无法保存';
+      add('浏览器不允许保存数据（常见于<strong>无痕模式</strong>）。'
+        + '你可以正常填写和查看结果，但不会留下记录，也看不到变化趋势。');
     } else if (app) {
-      $('env-warn-title').textContent = `你正在 ${app} 里打开这个页面`;
-      add(`记录会存在 ${app} 自带的浏览器里，<strong>换用手机自带的浏览器就看不到了</strong>，`
-        + `部分 App 还会在关闭后清除。`);
-      add(`想长期看到自己的变化趋势，建议点右上角的「···」选择<strong>「在浏览器中打开」</strong>，`
-        + `并且以后<strong>每次都用同一个浏览器</strong>填写。`);
-      add('只填这一次、不需要对比的话，在这里直接填也没问题。');
+      $('env-warn-title').textContent = `你正在 ${app} 里打开`;
+      add(`记录只会存在 ${app} 里，<strong>换用手机自带的浏览器就看不到了</strong>。`);
+      add('想长期看到自己的变化，点右上角「···」选择<strong>「在浏览器中打开」</strong>，以后固定用同一个浏览器。');
     }
     card.hidden = false;
   }
@@ -351,10 +347,10 @@
     const verdict = $('total-verdict');
     if (r.aboveCutoff) {
       verdict.className = 'verdict over';
-      verdict.textContent = '总分达到或超过划界分 62。';
+      verdict.textContent = '达到或超过参考线 62。';
     } else {
       verdict.className = 'verdict under';
-      verdict.textContent = '总分低于划界分 62。';
+      verdict.textContent = '低于参考线 62。';
     }
     $('severity-label').textContent = r.severity.label;
 
@@ -426,9 +422,8 @@
     if (r.imputed.length) {
       iCard.hidden = false;
       $('imputed-body').textContent =
-        `你有 ${r.imputed.length} 题未作答（第 ${r.imputed.map((x) => x.id).join('、')} 题），`
-        + '结果中这几题的分数是按同一维度其余题目的平均分估算的。'
-        + '这会让总分带一点不确定性，下次尽量答完整。';
+        `第 ${r.imputed.map((x) => x.id).join('、')} 题没有作答，分数是估算的，`
+        + '总分会带一点不确定性。下次尽量答完整。';
     } else {
       iCard.hidden = true;
     }
@@ -457,14 +452,12 @@
 
       const tail = document.createElement('p');
       tail.className = 'fieldnote';
-      tail.innerHTML = '判定用中国常模：可信变化指数 <strong>17</strong>、划界分 <strong>62</strong>。'
-        + '变化量小于 17 分时，还不能排除测量误差和日常心境波动的影响。';
+      tail.textContent = '总分变化超过 17 分才算真的有变化；差得比这少，可能只是日常的起伏。';
       body.appendChild(tail);
     } else {
       const none = document.createElement('p');
       none.className = 'fieldnote';
-      none.textContent = '这个浏览器里还没有以前的记录，所以暂时没法比较。'
-        + '如果你以前在别的设备或浏览器上填过，可以在下面直接输入上次的总分。';
+      none.textContent = '这个浏览器里还没有以前的记录。如果你在别的设备上填过，可以在下面输入上次的总分。';
       body.appendChild(none);
     }
 
@@ -638,8 +631,8 @@
 
     holder.appendChild(svg);
     $('trend-note').textContent = all.length > MAX_POINTS
-      ? `虚线为划界分 62，只显示最近 ${MAX_POINTS} 次（共 ${all.length} 次）。同一个人自己的曲线，比他相对常模的位置更值得关注。`
-      : '虚线为划界分 62。同一个人自己的曲线，比他相对常模的位置更值得关注。';
+      ? `虚线是参考线 62，只显示最近 ${MAX_POINTS} 次（共 ${all.length} 次）。看自己的曲线怎么走，比和别人比更有意义。`
+      : '虚线是参考线 62。看自己的曲线怎么走，比和别人比更有意义。';
   }
 
   /* 三个维度的趋势图。
@@ -777,7 +770,7 @@
     if (current.baseline) L.push('（基线）');
     L.push('');
     L.push(`总分：${r.total} / 180　（划界分 62，中国常模；${r.aboveCutoff ? '达到或超过' : '低于'}划界分）`);
-    L.push(`严重度分层：${r.severity.label}（美国常模参考）`);
+    L.push(`严重度分层：${r.severity.label}`);
     L.push('');
     ['SD', 'IR', 'SR'].forEach((k) => {
       const n = OQ_NORMS[k];
@@ -1111,10 +1104,10 @@
     y += 22;
     bar(r.total, 180, 62);
     y += 14;
-    text(r.aboveCutoff ? '总分达到或超过划界分 62' : '总分低于划界分 62',
+    text(r.aboveCutoff ? '达到或超过参考线 62' : '低于参考线 62',
          P, 21, '600', r.aboveCutoff ? IMG_C.warm : IMG_C.accent);
     y += 26;
-    text(`严重度分层：${r.severity.label}（美国常模参考）`, P, 17, '400', IMG_C.muted);
+    text(`严重度分层：${r.severity.label}`, P, 17, '400', IMG_C.muted);
     y += 30;
     rule();
     y += 34;
@@ -1130,8 +1123,17 @@
       y += 12;
       bar(v, n.max, n.cutoff);
     });
+    y += 22;   // 让开最后一根刻度条的「参考线」标签
+    [['症状困扰（SD）', '你最近的主观痛苦与情绪体验'],
+     ['人际关系（IR）', '你与生命中重要他人相处的质量与满意度'],
+     ['社会角色（SR）', '你在学习、工作与休闲生活中的适应和胜任感']].forEach(([k, v]) => {
+      text(k, P, 15, '600', IMG_C.soft);
+      setFont(ctx, '600', 15);
+      text(v, P + ctx.measureText(k).width + 6, 15, '400', IMG_C.muted);
+      y += 22;
+    });
     y += 4;
-    text('维度分只作定性线索，参考线取自美国常模', P, 15, '400', IMG_C.muted);
+    text('这三项用来看困扰更集中在哪一块，请以总分为主', P, 15, '400', IMG_C.muted);
     y += 30;
 
     // ── 与上次比
@@ -1148,7 +1150,7 @@
       text(`与 ${c.t1Date}（总分 ${c.t1}）相比，总分${dir} ${Math.abs(c.delta)} 分`,
            P, 18, '400', IMG_C.soft);
       y += 24;
-      text('判定用中国常模：可信变化指数 17、划界分 62', P, 15, '400', IMG_C.muted);
+      text('总分变化超过 17 分才算真的有变化，差得比这少可能只是日常起伏', P, 15, '400', IMG_C.muted);
       y += 30;
     }
 
@@ -1163,8 +1165,8 @@
       y += 26;
       chart(history);
       text(all.length > MAX_POINTS
-        ? `虚线为划界分 62　·　只显示最近 ${MAX_POINTS} 次（共 ${all.length} 次）`
-        : '虚线为划界分 62', P, 15, '400', IMG_C.muted);
+        ? `虚线是参考线 62　·　只显示最近 ${MAX_POINTS} 次（共 ${all.length} 次）`
+        : '虚线是参考线 62', P, 15, '400', IMG_C.muted);
       y += 30;
     }
 
@@ -1173,13 +1175,12 @@
     if (dimHistory.length >= 2) {
       rule();
       y += 34;
-      text('三个维度的变化', P, 20, '600', IMG_C.ink);
+      text('三个方面的变化', P, 20, '600', IMG_C.ink);
       y += 26;
       dimChart(dimHistory);
       setFont(ctx, '400', 15);
-      wrapText(ctx, '纵轴为各维度占自己满分的百分比（满分 100 / 44 / 36 不同，'
-        + '不换算无法画在一起），图例里的数字是本次的原始分；虚线是参考线，'
-        + '三个维度的划界分换算后都在 36% 附近。', CW).forEach((ln) => {
+      wrapText(ctx, '三项的满分不同，换算成百分比才能画在同一张图上；'
+        + '图例里是本次的实际分数，虚线是参考线。', CW).forEach((ln) => {
         text(ln, P, 15, '400', IMG_C.muted);
         y += 22;
       });
@@ -1210,8 +1211,7 @@
     y += 30;
     setFont(ctx, '400', 15);
     const foot = 'OQ-45.2 是效果监测工具，不是诊断工具。分数高低不等于任何诊断，'
-               + '结果需要由受过训练的临床工作者解读。划界分 62、可信变化指数 17 '
-               + '来自中国常模（李钰静, 2010）。';
+               + '请把这份结果带到会谈中和咨询师一起看。';
     wrapText(ctx, foot, CW).forEach((ln) => {
       text(ln, P, 15, '400', IMG_C.muted);
       y += 22;

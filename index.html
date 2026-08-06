@@ -23,10 +23,9 @@
     <section class="card notes">
       <h2>开始之前</h2>
       <ul>
-        <li><strong>这不是诊断工具。</strong>它用来记录你最近一段时间的状态变化，分数高低不等于任何诊断。结果需要受过训练的临床工作者来解读，请把它带到会谈中和你的咨询师一起看。</li>
-        <li><strong>请在会谈开始前填写</strong>，不要在会谈结束后填。同一份问卷每周不超过一次。</li>
-        <li>适用于 <strong>18 岁及以上</strong>。</li>
-        <li>没有对错答案，凭第一感觉作答通常更准确。</li>
+        <li><strong>这不是诊断工具。</strong>分数高低不等于任何诊断，请把结果带到会谈中和咨询师一起看。</li>
+        <li><strong>请在会谈开始前填写</strong>，每周不超过一次。</li>
+        <li>适用于 18 岁及以上。没有对错答案，凭第一感觉作答即可。</li>
       </ul>
     </section>
 
@@ -38,10 +37,9 @@
 
     <section class="card privacy">
       <h2>关于你的数据</h2>
-      <p><strong>你的作答不会上传到任何服务器</strong>，全部计算都在这个页面里完成。</p>
-      <p>为了让你下次能看到自己的变化趋势，每次的结果会<strong>自动保存在这台设备的浏览器里</strong>。记录跟着<strong>浏览器</strong>走——换一个浏览器或换一台设备就看不到了。如果你在共用的电脑或手机上填写，请在看完结果后点「清除本机记录」。</p>
+      <p><strong>你的作答不会上传</strong>，全部计算都在这个页面里完成。</p>
+      <p>结果会自动存在<strong>这台设备的浏览器</strong>里，方便下次看变化。用共用的手机或电脑填写时，看完请点「清除本机记录」。</p>
       <p class="storage-line">本机当前已保存 <strong id="intro-count">0</strong> 份记录。<button type="button" class="linkbtn" id="intro-clear">清除本机记录</button></p>
-      <p class="fieldnote">换了设备或浏览器也不要紧——填完之后可以在结果页直接输入上次的总分，一样能算出变化。</p>
     </section>
 
     <section class="card">
@@ -65,10 +63,7 @@
 
     <button type="button" class="primary big" id="btn-start">开始填写</button>
 
-    <p class="footnote">
-      量表版本：OQ-45.2 中文版，秦佑凤、胡姝婧（2008）译本。
-      本页面仅供已获授权的机构与个人使用。
-    </p>
+    <p class="footnote">OQ-45.2 中文版（秦佑凤、胡姝婧, 2008）。仅供已获授权使用。</p>
   </div>
 </main>
 
@@ -85,7 +80,7 @@
     <div class="form-head">
       <h1>过去 7 天，以下情况符合你吗？</h1>
       <p class="lede">请为每一题选择一个最接近的答案。</p>
-      <p class="fieldnote">有几道题的下方多一个<strong>「不适用」</strong>按钮。只有当题目描述的情况在你身上<strong>确实不存在</strong>时才选它（比如目前没有恋爱关系、不喝酒）；如果情况存在、只是程度很轻，请照常在上面五个选项里选。</p>
+      <p class="fieldnote">少数几题下方有<strong>「不适用」</strong>——只有当那件事在你身上确实不存在时才选（比如目前没有恋爱关系、不喝酒）。</p>
       <p class="kbd-tip">提示：可以用键盘 <kbd>1</kbd>–<kbd>5</kbd> 快速作答。</p>
     </div>
 
@@ -134,18 +129,21 @@
         <div class="gauge-mark" id="total-mark"><span>划界分 62</span></div>
       </div>
       <p class="verdict" id="total-verdict"></p>
-      <p class="fieldnote">划界分 62 来自中国常模（李钰静, 2010）。它是一条统计意义上的参考线，用来提示「是否达到临床关注的水平」，<strong>不是诊断依据</strong>。</p>
-      <p class="subline">严重度分层：<strong id="severity-label">—</strong><span class="tag">美国常模参考</span></p>
-      <p class="fieldnote">这套分层（&lt;64 低｜64–82 中度｜83–105 中高｜&gt;105 高）出自美国常模，与上面 62 那条线来源不同，两者不要混着比较。</p>
+      <p class="subline">严重度分层：<strong id="severity-label">—</strong></p>
+      <p class="fieldnote">62 是一条参考线，用来提示是否达到需要关注的水平，<strong>不是诊断</strong>。</p>
     </section>
 
     <!-- 三个维度 -->
     <section class="card">
       <h2>三个方面</h2>
-      <p class="fieldnote">维度分只作<strong>定性线索</strong>看——用来判断困扰更集中在哪一块，而不是用来衡量效果。中文版分量表的内部一致性偏低（α 0.57–0.91），单独一个维度分不足以下结论。请以总分为主。</p>
       <div id="dims"></div>
-      <p class="fieldnote" id="sr-note" hidden>社会角色分偏低时，也可能是因为目前没有在承担学习或工作角色，而不是适应良好。可以和咨询师确认一下。</p>
-      <p class="fieldnote">各维度的参考线（症状困扰 37｜人际关系 16｜社会角色 13）来自<strong>美国常模</strong>——中国的分量表划界分未见公开发表。</p>
+      <ul class="dimdefs">
+        <li><b>症状困扰（SD）</b>你最近的主观痛苦与情绪体验，比如低落、紧张、睡眠和精力。</li>
+        <li><b>人际关系（IR）</b>你与生命中重要他人相处的质量，以及对这些关系的满意程度。</li>
+        <li><b>社会角色（SR）</b>你在学习、工作与休闲生活中的适应状况和胜任感。</li>
+      </ul>
+      <p class="fieldnote" id="sr-note" hidden>社会角色分偏低，也可能是因为目前没有在上学或工作，可以和咨询师确认一下。</p>
+      <p class="fieldnote">这三项用来看困扰更集中在哪一块，请以总分为主，不要单独看某一项。</p>
     </section>
 
     <!-- 变化对比 -->
@@ -158,28 +156,22 @@
     <section class="card" id="trend-card" hidden>
       <h2>总分变化</h2>
       <div class="chart-scroll"><div id="trend-chart"></div></div>
-      <p class="fieldnote" id="trend-note">虚线为划界分 62。同一个人自己的曲线，比他相对常模的位置更值得关注。</p>
+      <p class="fieldnote" id="trend-note">虚线是参考线 62。看自己的曲线怎么走，比和别人比更有意义。</p>
     </section>
 
     <!-- 趋势图：三个维度 -->
     <section class="card" id="dimtrend-card" hidden>
-      <h2>三个维度的变化</h2>
+      <h2>三个方面的变化</h2>
       <div class="chart-scroll"><div id="dimtrend-chart"></div></div>
       <ul class="legend" id="dimtrend-legend"></ul>
       <p class="fieldnote" id="dimtrend-note"></p>
-      <p class="fieldnote">三个维度的满分不同（症状困扰 100、人际关系 44、社会角色 36），
-        直接画在一起没法比，所以纵轴换成了<strong>各维度占自己满分的百分比</strong>；上面图例里的数字是本次的原始分，
-        点住任意一个圆点可以看到那一次的原始分。</p>
-      <p class="fieldnote">虚线是参考线——三个维度的美国常模划界分换算后都落在 36% 附近（37/100、16/44、13/36），
-        所以一条线可以同时代表三个维度。</p>
-      <p class="fieldnote">维度分只作<strong>定性线索</strong>，用来看困扰更集中在哪一块、以及各自的走向，
-        不要单独拿某一条曲线当疗效指标。</p>
+      <p class="fieldnote">三项的满分不同，换算成百分比才能画在同一张图上；图例里是本次的实际分数，点住圆点可以看到每一次的分数。虚线是参考线。</p>
     </section>
 
     <!-- 关键题 -->
     <section class="card" id="critical-card" hidden>
       <h2>建议在会谈中谈到的几题</h2>
-      <p class="fieldnote">以下题目你的作答提示了值得展开的话题。它们不是「问题清单」，只是给你和咨询师的一个开场。</p>
+      <p class="fieldnote">这几题的作答提示了值得展开的话题，不是问题清单，只是给你和咨询师一个开场。</p>
       <ul class="critical-list" id="critical-list"></ul>
     </section>
 
@@ -187,13 +179,12 @@
     <section class="card" id="imputed-card" hidden>
       <h2>关于漏答</h2>
       <p id="imputed-body"></p>
-      <p class="fieldnote">按 OQ-45.2 规定，漏答 1–4 题时用该题所属维度其余题目的均值（四舍五入）填补；漏答 5 题及以上整份作废。</p>
     </section>
 
     <!-- 导出 -->
     <section class="card noprint">
       <h2>保存这份结果</h2>
-      <p class="fieldnote">建议导出一份带到会谈中。<strong>手机上用「保存为图片」最稳</strong>——生成一张结果图，长按就能存进相册或直接发给咨询师。</p>
+      <p class="fieldnote">建议存一份带到会谈中。<strong>手机上用「保存为图片」最方便</strong>，长按就能存进相册或发给咨询师。</p>
       <div class="btnrow">
         <button type="button" class="wide" id="btn-image">保存为图片</button>
         <button type="button" id="btn-copy">复制为文字</button>
@@ -202,19 +193,20 @@
         <button type="button" id="btn-json">下载 JSON</button>
       </div>
       <p class="copied" id="copied" hidden>已复制到剪贴板</p>
-      <p class="fieldnote" id="print-note">「打印 / 存 PDF」在电脑上可以选「另存为 PDF」；手机浏览器多数只给打印机选项，App 内置浏览器里往往完全没反应——手机请用「保存为图片」。</p>
-      <p class="fieldnote">CSV 里的逐题分数是<strong>纸质题本的等价勾选值，未做反向计分</strong>，录入时不要重复反转。选了「不适用」的题会按题本规则换算（正向题记 0，反向题记 4），另有一列列出这些题号。</p>
+      <p class="fieldnote" id="print-note">「打印 / 存 PDF」在电脑上可选「另存为 PDF」，手机上多数只能连打印机。CSV / JSON 供咨询师留档。</p>
     </section>
 
-    <section class="card sources">
-      <h2>常模与限制</h2>
+    <details class="card sources">
+      <summary>分数是怎么来的（给咨询师）</summary>
       <ul>
         <li>总分划界分 <strong>62</strong>、可信变化指数 <strong>17</strong>：李钰静 (2010)，中文版 OQ-45.2 信效度研究，浙江理工大学硕士论文。</li>
-        <li>该常模建立在李钰静译本上；本页面使用的是秦佑凤、胡姝婧 (2008) 译本。两个译本条目内容高度一致、维度归属完全相同，<strong>沿用 62/17 属于合理外推</strong>，记录时请注明。</li>
-        <li>分量表划界分、严重度分层与分量表 RCI 均取自美国常模，仅供参考。</li>
-        <li>「恢复 / 改善 / 无变化 / 恶化」的判定方法：Jacobson &amp; Truax (1991)。</li>
+        <li>该常模建立在李钰静译本上，本页面用的是秦佑凤、胡姝婧 (2008) 译本。两译本条目内容高度一致、维度归属相同，<strong>沿用 62/17 属合理外推</strong>，记录时请注明。</li>
+        <li>严重度分层（&lt;64 低｜64–82 中度｜83–105 中高｜&gt;105 高）与三个维度的参考线（37 / 16 / 13）取自美国常模——中国的分量表划界分未见公开发表。</li>
+        <li>中文版分量表内部一致性偏低（α 0.57–0.91），维度分只作定性线索，不单独作为疗效指标。</li>
+        <li>「恢复 / 改善 / 无变化 / 恶化」的判定：Jacobson &amp; Truax (1991)。</li>
+        <li>漏答 1–4 题用同维度其余题目均值（四舍五入）填补，≥5 题整份作废。CSV 的逐题分数为<strong>题本等价勾选值、未做反向计分</strong>，「不适用」按正向题记 0、反向题记 4。</li>
       </ul>
-    </section>
+    </details>
 
     <div class="btnrow noprint end-actions">
       <button type="button" id="btn-again">再填一次</button>
