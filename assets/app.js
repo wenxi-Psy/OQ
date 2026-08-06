@@ -730,55 +730,6 @@
     download(fileStem() + '.json', JSON.stringify(data, null, 2), 'application/json');
   }
 
-  /* 全部记录的导出 / 导入，用于换设备或换浏览器 */
-  function exportAll() {
-    const list = loadRecords();
-    if (!list.length) { window.alert('本机还没有任何记录。'); return; }
-    const data = { format: 'oq45-records', version: 1, exported_at: new Date().toISOString(), records: list };
-    // 文件名用 ASCII：部分安卓文件管理器和聊天软件会弄坏中文文件名
-    download('OQ45_all_records_' + todayISO() + '.json', JSON.stringify(data, null, 2), 'application/json');
-  }
-
-  function importAll(file) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      let incoming;
-      try {
-        const parsed = JSON.parse(String(reader.result));
-        incoming = Array.isArray(parsed) ? parsed : parsed.records;
-      } catch (e) { incoming = null; }
-
-      if (!Array.isArray(incoming)) {
-        window.alert('这个文件读不出记录。请选择用「导出全部记录」生成的 JSON 文件。');
-        return;
-      }
-      const valid = incoming.filter((r) =>
-        r && typeof r.total === 'number' && Array.isArray(r.raw) && r.raw.length === 45 && r.ts);
-      if (!valid.length) {
-        window.alert('文件里没有可用的 OQ-45.2 记录。');
-        return;
-      }
-
-      const existing = loadRecords();
-      const seen = new Set(existing.map((r) => r.id));
-      const added = valid.filter((r) => !seen.has(r.id));
-      const merged = existing.concat(added).sort((a, b) => a.ts.localeCompare(b.ts));
-
-      try {
-        localStorage.setItem(STORE_KEY, JSON.stringify(merged));
-      } catch (e) {
-        window.alert('导入失败：这个浏览器不允许保存数据。');
-        return;
-      }
-      refreshCount();
-      window.alert(`导入完成：新增 ${added.length} 份`
-        + (valid.length - added.length ? `，跳过 ${valid.length - added.length} 份重复记录` : '')
-        + `。本机现有 ${merged.length} 份。`);
-    };
-    reader.onerror = () => window.alert('文件读取失败，请重试。');
-    reader.readAsText(file);
-  }
-
   /* ══════════ 结果图片 ══════════
    * 手机浏览器的 window.print() 多数只给打印机选项，App 内置浏览器里常常
    * 完全没反应。生成一张图片让用户长按保存，是移动端最可靠的带走方式。
@@ -1032,14 +983,6 @@
     $('btn-json').addEventListener('click', exportJSON);
     $('btn-print').addEventListener('click', () => window.print());
     $('btn-image').addEventListener('click', showImage);
-
-    $('btn-export-all').addEventListener('click', exportAll);
-    $('btn-import').addEventListener('click', () => $('import-file').click());
-    $('import-file').addEventListener('change', (e) => {
-      const f = e.target.files && e.target.files[0];
-      if (f) importAll(f);
-      e.target.value = '';          // 允许重复选同一个文件
-    });
 
     $('img-close').addEventListener('click', hideImage);
     $('img-overlay').addEventListener('click', (e) => {
