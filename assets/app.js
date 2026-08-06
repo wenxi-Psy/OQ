@@ -394,6 +394,7 @@
 
     renderCompare();
     renderTrend();
+    renderDimTrend();
 
     // —— 关键题
     const cCard = $('critical-card'), cList = $('critical-list');
@@ -546,21 +547,27 @@
     return box;
   }
 
+  /* 折线图最多画最近这么多次。再多横轴日期会糊成一团，
+   * 而且最该看见的是最近的走向。图片导出也用同一个上限。 */
+  const MAX_POINTS = 10;
+
   /* 总分趋势图（纯 SVG，无外部依赖） */
   function renderTrend() {
     const card = $('trend-card'), holder = $('trend-chart');
     holder.textContent = '';
 
-    const list = loadRecords().sort((a, b) => a.ts.localeCompare(b.ts));
+    const all = loadRecords().sort((a, b) => a.ts.localeCompare(b.ts));
+    const list = all.slice(-MAX_POINTS);
     if (list.length < 2) { card.hidden = true; return; }
     card.hidden = false;
 
-    const padL = 32, padR = 14, padT = 12, padB = 30, h = 190;
-    // 点少时铺满容器宽度，点多时按每点最小间距展开、由容器横向滚动。
+    const padL = 32, padR = 16, padT = 12, padB = 30, h = 190;
+    // 铺满容器宽度、不横向滚动：滚动会把最新一次挡在屏幕外，
+    // 而那正是最该看到的。点多了改为抽稀标签，见下面的 dense。
     const gaps = list.length - 1;
-    const avail = Math.max(260, holder.clientWidth || 320);
-    const step = Math.max(56, (avail - padL - padR) / gaps);
-    const w = padL + padR + step * gaps;
+    const w = Math.max(260, holder.clientWidth || 320);
+    const step = (w - padL - padR) / gaps;
+    const dense = step < 44;
     const plotH = h - padT - padB;
     const x = (i) => padL + step * i;
     const y = (v) => padT + plotH - (v / 180) * plotH;
@@ -616,14 +623,147 @@
       title.textContent = `${r.date}　总分 ${r.total}`;
       dot.appendChild(title);
 
-      add('text', { x: x(i), y: y(r.total) - 11, 'text-anchor': 'middle',
-                    'font-size': 11, 'font-weight': isNow ? 600 : 400,
-                    fill: 'currentColor' }, r.total);
-      add('text', { x: x(i), y: h - 10, 'text-anchor': 'middle',
-                    'font-size': 10, fill: cMuted }, r.date.slice(5));
+      // 挤的时候只标最后一次；其余的值仍可长按/悬停从 <title> 读到
+      if (!dense || i === gaps) {
+        add('text', { x: Math.min(x(i), w - padR - 8), y: y(r.total) - 11,
+                      'text-anchor': dense && i === gaps ? 'end' : 'middle',
+                      'font-size': 11, 'font-weight': isNow ? 600 : 400,
+                      fill: 'currentColor' }, r.total);
+      }
+      if (!dense || i % 2 === 0 || i === gaps) {
+        add('text', { x: x(i), y: h - 10, 'text-anchor': 'middle',
+                      'font-size': 10, fill: cMuted }, r.date.slice(5));
+      }
     });
 
     holder.appendChild(svg);
+    $('trend-note').textContent = all.length > MAX_POINTS
+      ? `虚线为划界分 62，只显示最近 ${MAX_POINTS} 次（共 ${all.length} 次）。同一个人自己的曲线，比他相对常模的位置更值得关注。`
+      : '虚线为划界分 62。同一个人自己的曲线，比他相对常模的位置更值得关注。';
+  }
+
+  /* 三个维度的趋势图。
+   *
+   * 三个维度满分不同（SD 100 / IR 44 / SR 36），画在同一根纵轴上，
+   * IR 和 SR 会被压在下半部分看不出变化，所以纵轴换成「占各自满分的百分比」。
+   * 巧的是三条美国常模划界分换算后几乎重合——37/100 = 37.0%、16/44 = 36.4%、
+   * 13/36 = 36.1%——所以一条虚线就能同时代表三个维度的参考线。
+   * 圆点上标的仍是原始分，避免读者把百分比当成分数。 */
+  const DIM_LINES = [
+    { key: 'SD', varName: '--dim-sd', fallback: '#426b78', dash: '' },
+    { key: 'IR', varName: '--dim-ir', fallback: '#a8734a', dash: '7 4' },
+    { key: 'SR', varName: '--dim-sr', fallback: '#6b6091', dash: '2 4' },
+  ];
+  const DIM_REF_PCT = 36.5;      // 三条划界分换算后的公共位置
+
+  /* 老记录或导入的数据可能没有维度分，画之前先筛掉 */
+  function hasDims(rec) {
+    return rec && rec.dims && ['SD', 'IR', 'SR'].every(
+      (k) => typeof rec.dims[k] === 'number' && isFinite(rec.dims[k]));
+  }
+
+  function renderDimTrend() {
+    const card = $('dimtrend-card'), holder = $('dimtrend-chart'), legend = $('dimtrend-legend');
+    holder.textContent = '';
+    legend.textContent = '';
+
+    const withDims = loadRecords().filter(hasDims).sort((a, b) => a.ts.localeCompare(b.ts));
+    const list = withDims.slice(-MAX_POINTS);
+    if (list.length < 2) { card.hidden = true; return; }
+    card.hidden = false;
+
+    const padL = 34, padR = 16, padT = 14, padB = 30, h = 200;
+    const gaps = list.length - 1;
+    const w = Math.max(260, holder.clientWidth || 320);
+    const step = (w - padL - padR) / gaps;
+    const dense = step < 44;
+    const plotH = h - padT - padB;
+    const x = (i) => padL + step * i;
+    const y = (pct) => padT + plotH - (pct / 100) * plotH;
+
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('width', w);
+    svg.setAttribute('height', h);
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', '三个维度随时间变化的折线图');
+
+    const css = getComputedStyle(document.body);
+    const cLine    = css.getPropertyValue('--line').trim()    || '#e6e0d6';
+    const cMuted   = css.getPropertyValue('--muted').trim()   || '#857e74';
+    const cSurface = css.getPropertyValue('--surface').trim() || '#ffffff';
+
+    const add = (tag, attrs, text) => {
+      const el = document.createElementNS(NS, tag);
+      Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+      if (text != null) el.textContent = text;
+      svg.appendChild(el);
+      return el;
+    };
+
+    [0, 50, 100].forEach((p) => {
+      add('line', { x1: padL, y1: y(p), x2: w - padR, y2: y(p), stroke: cLine, 'stroke-width': 1 });
+      add('text', { x: padL - 6, y: y(p) + 4, 'text-anchor': 'end',
+                    'font-size': 10, fill: cMuted }, p + '%');
+    });
+
+    add('line', { x1: padL, y1: y(DIM_REF_PCT), x2: w - padR, y2: y(DIM_REF_PCT),
+                  stroke: cMuted, 'stroke-width': 1, 'stroke-dasharray': '4 3' });
+
+    DIM_LINES.forEach((d) => {
+      const color = css.getPropertyValue(d.varName).trim() || d.fallback;
+      const max = OQ_NORMS[d.key].max;
+      const pctOf = (rec) => rec.dims[d.key] / max * 100;
+
+      const attrs = {
+        points: list.map((rec, i) => `${x(i)},${y(pctOf(rec))}`).join(' '),
+        fill: 'none', stroke: color, 'stroke-width': 2,
+        'stroke-linejoin': 'round', 'stroke-linecap': 'round',
+      };
+      if (d.dash) attrs['stroke-dasharray'] = d.dash;
+      add('polyline', attrs);
+
+      list.forEach((rec, i) => {
+        const isNow = rec.id === current.id;
+        const dot = add('circle', {
+          cx: x(i), cy: y(pctOf(rec)), r: isNow ? 4.5 : 3,
+          fill: isNow ? color : cSurface, stroke: color, 'stroke-width': 2,
+        });
+        const title = document.createElementNS(NS, 'title');
+        title.textContent = `${rec.date}　${OQ_NORMS[d.key].label} ${rec.dims[d.key]} / ${max}`;
+        dot.appendChild(title);
+      });
+
+      // 不在线末标数值：三条线收尾时常常挨在一起，标签会叠成一团。
+      // 本次的原始分由下方图例给出，点上的值可以长按/悬停看 <title>。
+    });
+
+    list.forEach((rec, i) => {
+      if (!dense || i % 2 === 0 || i === gaps) {
+        add('text', { x: x(i), y: h - 10, 'text-anchor': 'middle',
+                      'font-size': 10, fill: cMuted }, rec.date.slice(5));
+      }
+    });
+
+    holder.appendChild(svg);
+    $('dimtrend-note').textContent = withDims.length > MAX_POINTS
+      ? `只显示最近 ${MAX_POINTS} 次（共 ${withDims.length} 次有维度分的记录）。`
+      : '';
+
+    // 图例带上本次的原始分
+    DIM_LINES.forEach((d) => {
+      const color = css.getPropertyValue(d.varName).trim() || d.fallback;
+      const n = OQ_NORMS[d.key];
+      const li = document.createElement('li');
+      const sw = document.createElement('span');
+      sw.className = 'swatch';
+      sw.style.background = color;
+      const txt = document.createElement('span');
+      txt.innerHTML = `${n.label}　<b>${current.result.dims[d.key]}</b> / ${n.max}`;
+      li.append(sw, txt);
+      legend.appendChild(li);
+    });
   }
 
   /* ══════════ 导出 ══════════ */
@@ -743,7 +883,9 @@
   const IMG_C = {
     bg: '#ffffff', ink: '#2c2a26', soft: '#56514a', muted: '#8a837a',
     line: '#e6e0d6', lineSoft: '#f2eee7', accent: '#426b78', warm: '#a8734a',
+    SD: '#426b78', IR: '#a8734a', SR: '#6b6091',
   };
+  const IMG_DASH = { SD: [], IR: [9, 5], SR: [2, 5] };
 
   function setFont(ctx, weight, size) { ctx.font = `${weight} ${size}px ${FONT}`; }
 
@@ -867,6 +1009,85 @@
       y = bot + 58;
     };
 
+    /* 三个维度的趋势。纵轴是「占各自满分的百分比」——三个维度满分不同，
+     * 不换算就没法画在一张图上。见 renderDimTrend() 里的说明。 */
+    const dimChart = (list) => {
+      const H = 172, axL = P + 48, axR = W - P - 6, plotW = axR - axL;
+      const top = y, bot = y + H;
+      const px = (i) => axL + plotW * (i / (list.length - 1));
+      const py = (pct) => bot - (pct / 100) * H;
+
+      [0, 50, 100].forEach((p) => {
+        rect(axL, py(p), plotW, 1, IMG_C.lineSoft);
+        textAt(p + '%', axL - 14, py(p) + 5, 14, '400', IMG_C.muted, 'right');
+      });
+
+      if (!dry) {
+        ctx.save();
+        ctx.strokeStyle = IMG_C.muted;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(axL, py(DIM_REF_PCT));
+        ctx.lineTo(axR, py(DIM_REF_PCT));
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      ['SD', 'IR', 'SR'].forEach((k) => {
+        const max = OQ_NORMS[k].max;
+        const pctOf = (rec) => rec.dims[k] / max * 100;
+
+        if (!dry) {
+          ctx.save();
+          ctx.strokeStyle = IMG_C[k];
+          ctx.lineWidth = 3;
+          ctx.lineJoin = 'round';
+          ctx.lineCap = IMG_DASH[k].length ? 'butt' : 'round';
+          ctx.setLineDash(IMG_DASH[k]);
+          ctx.beginPath();
+          list.forEach((rec, i) => {
+            if (i === 0) ctx.moveTo(px(i), py(pctOf(rec)));
+            else ctx.lineTo(px(i), py(pctOf(rec)));
+          });
+          ctx.stroke();
+          ctx.restore();
+
+          list.forEach((rec, i) => {
+            ctx.save();
+            ctx.fillStyle = i === list.length - 1 ? IMG_C[k] : IMG_C.bg;
+            ctx.strokeStyle = IMG_C[k];
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.arc(px(i), py(pctOf(rec)), i === list.length - 1 ? 6 : 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+          });
+        }
+
+        // 同网页版：不在线末标数值，三条线收尾时会叠在一起，改由下方图例给出
+      });
+
+      list.forEach((rec, i) => {
+        textAt(rec.date.slice(5), px(i), bot + 26, 14, '400', IMG_C.muted, 'center');
+      });
+
+      y = bot + 56;
+
+      // 图例：色块 + 名称 + 本次原始分
+      let lx = P;
+      ['SD', 'IR', 'SR'].forEach((k) => {
+        const n = OQ_NORMS[k];
+        const label = `${n.label} ${r.dims[k]}/${n.max}`;
+        rect(lx, y - 9, 22, 4, IMG_C[k], 2);
+        textAt(label, lx + 30, y, 15, '400', IMG_C.soft);
+        setFont(ctx, '400', 15);
+        lx += 30 + ctx.measureText(label).width + 24;
+      });
+      y += 26;
+    };
+
     // ── 抬头
     y += 54;
     text('OQ-45.2 心理咨询效果问卷', P, 20, '400', IMG_C.muted);
@@ -945,6 +1166,24 @@
         ? `虚线为划界分 62　·　只显示最近 ${MAX_POINTS} 次（共 ${all.length} 次）`
         : '虚线为划界分 62', P, 15, '400', IMG_C.muted);
       y += 30;
+    }
+
+    // ── 三个维度的变化折线
+    const dimHistory = all.filter(hasDims).slice(-MAX_POINTS);
+    if (dimHistory.length >= 2) {
+      rule();
+      y += 34;
+      text('三个维度的变化', P, 20, '600', IMG_C.ink);
+      y += 26;
+      dimChart(dimHistory);
+      setFont(ctx, '400', 15);
+      wrapText(ctx, '纵轴为各维度占自己满分的百分比（满分 100 / 44 / 36 不同，'
+        + '不换算无法画在一起），图例里的数字是本次的原始分；虚线是参考线，'
+        + '三个维度的划界分换算后都在 36% 附近。', CW).forEach((ln) => {
+        text(ln, P, 15, '400', IMG_C.muted);
+        y += 22;
+      });
+      y += 12;
     }
 
     // ── 关键题
@@ -1144,6 +1383,7 @@
       refreshCount();
       $('compare-card').hidden = true;
       $('trend-card').hidden = true;
+      $('dimtrend-card').hidden = true;
       window.alert('本机记录已清除。');
     };
     $('intro-clear').addEventListener('click', doClear);

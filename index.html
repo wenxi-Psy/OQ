@@ -154,11 +154,26 @@
       <div id="compare-body"></div>
     </section>
 
-    <!-- 趋势图 -->
+    <!-- 趋势图：总分 -->
     <section class="card" id="trend-card" hidden>
       <h2>总分变化</h2>
       <div class="chart-scroll"><div id="trend-chart"></div></div>
-      <p class="fieldnote">虚线为划界分 62。同一个人自己的曲线，比他相对常模的位置更值得关注。</p>
+      <p class="fieldnote" id="trend-note">虚线为划界分 62。同一个人自己的曲线，比他相对常模的位置更值得关注。</p>
+    </section>
+
+    <!-- 趋势图：三个维度 -->
+    <section class="card" id="dimtrend-card" hidden>
+      <h2>三个维度的变化</h2>
+      <div class="chart-scroll"><div id="dimtrend-chart"></div></div>
+      <ul class="legend" id="dimtrend-legend"></ul>
+      <p class="fieldnote" id="dimtrend-note"></p>
+      <p class="fieldnote">三个维度的满分不同（症状困扰 100、人际关系 44、社会角色 36），
+        直接画在一起没法比，所以纵轴换成了<strong>各维度占自己满分的百分比</strong>；上面图例里的数字是本次的原始分，
+        点住任意一个圆点可以看到那一次的原始分。</p>
+      <p class="fieldnote">虚线是参考线——三个维度的美国常模划界分换算后都落在 36% 附近（37/100、16/44、13/36），
+        所以一条线可以同时代表三个维度。</p>
+      <p class="fieldnote">维度分只作<strong>定性线索</strong>，用来看困扰更集中在哪一块、以及各自的走向，
+        不要单独拿某一条曲线当疗效指标。</p>
     </section>
 
     <!-- 关键题 -->

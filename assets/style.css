@@ -12,6 +12,11 @@
   --line-soft: #f0ece4;
   --accent:    #426b78;   /* 白字压在上面时对比度约 6:1，留出余量，不贴着 AA 的 4.5 */
   --accent-ink:#ffffff;
+  /* 三个维度的曲线颜色。除了色相不同，线型也不同（实线/虚线/点线），
+   * 色觉障碍的人靠线型也能区分。 */
+  --dim-sd:    #426b78;
+  --dim-ir:    #a8734a;
+  --dim-sr:    #6b6091;
   --accent-bg: #eaf1f3;
   --warm:      #a8734a;
   --warm-bg:   #f8f0e8;
@@ -30,6 +35,9 @@
     --line-soft: #2c2a26;
     --accent:    #7fb0c0;
     --accent-ink:#141412;
+    --dim-sd:    #7fb0c0;
+    --dim-ir:    #d0a077;
+    --dim-sr:    #a79ccd;
     --accent-bg: #23343a;
     --warm:      #d0a077;
     --warm-bg:   #2e2620;
@@ -422,7 +430,20 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ── 结果：趋势图 ── */
 .chart-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 calc(var(--pad) * -1); padding: 0 var(--pad); }
-#trend-chart svg { display: block; }
+.chart-scroll svg { display: block; }
+
+/* 维度折线图的图例 */
+.card ul.legend {
+  list-style: none; padding-left: 0;
+  display: flex; flex-wrap: wrap; gap: 8px 16px;
+  margin: 14px 0 0;
+}
+.legend li {
+  display: flex; align-items: center; gap: 7px;
+  margin: 0; font-size: 13.5px; color: var(--ink-soft);
+}
+.legend .swatch { flex: none; width: 22px; height: 3px; border-radius: 2px; }
+.legend b { font-variant-numeric: tabular-nums; color: var(--ink); }
 
 /* ── 结果：关键题 ── */
 .critical-list { list-style: none; padding: 0; margin: 14px 0 0; }
@@ -475,3 +496,6 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* 空的说明段落不占位（点数未超上限时不显示截断提示） */
+.fieldnote:empty { display: none; }
