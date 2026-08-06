@@ -768,15 +768,18 @@
     const W = IMG_W, P = IMG_PAD, CW = W - P * 2;
     let y = 0;
 
-    const text = (str, x, size, weight, color, align) => {
+    // textAt 用绝对纵坐标，text 用当前的 y 游标
+    const textAt = (str, x, yy, size, weight, color, align) => {
       setFont(ctx, weight, size);
       if (!dry) {
         ctx.fillStyle = color;
         ctx.textAlign = align || 'left';
         ctx.textBaseline = 'alphabetic';
-        ctx.fillText(str, x, y);
+        ctx.fillText(str, x, yy);
       }
     };
+    const text = (str, x, size, weight, color, align) =>
+      textAt(str, x, y, size, weight, color, align);
     const rect = (x, yy, w, h, color, radius) => {
       if (dry) return;
       ctx.fillStyle = color;
@@ -798,6 +801,70 @@
       const lblX = Math.min(Math.max(cx, P + 30), W - P - 30);
       text(`参考线 ${cutoff}`, lblX, 15, '400', IMG_C.muted, 'center');
       y += 12;
+    };
+
+    /* 总分趋势折线。与网页版 SVG 同样的数据和刻度，画在 canvas 上。 */
+    const chart = (list) => {
+      const H = 172, axL = P + 48, axR = W - P - 6, plotW = axR - axL;
+      const top = y, bot = y + H;
+      const px = (i) => axL + plotW * (i / (list.length - 1));
+      const py = (v) => bot - (v / 180) * H;
+
+      [0, 60, 120, 180].forEach((v) => {
+        rect(axL, py(v), plotW, 1, IMG_C.lineSoft);
+        textAt(String(v), axL - 14, py(v) + 5, 14, '400', IMG_C.muted, 'right');
+      });
+
+      if (!dry) {
+        // 划界分 62：虚线
+        ctx.save();
+        ctx.strokeStyle = IMG_C.muted;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(axL, py(62));
+        ctx.lineTo(axR, py(62));
+        ctx.stroke();
+        ctx.restore();
+
+        // 折线
+        ctx.save();
+        ctx.strokeStyle = IMG_C.accent;
+        ctx.lineWidth = 3;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        list.forEach((rec, i) => {
+          if (i === 0) ctx.moveTo(px(i), py(rec.total));
+          else ctx.lineTo(px(i), py(rec.total));
+        });
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      list.forEach((rec, i) => {
+        const isNow = rec.id === current.id;
+        if (!dry) {
+          ctx.save();
+          ctx.fillStyle = isNow ? IMG_C.accent : IMG_C.bg;
+          ctx.strokeStyle = IMG_C.accent;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(px(i), py(rec.total), isNow ? 7 : 5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        }
+        // 分数标在点上方，最高分附近改标下方，避免顶出画面；
+        // 首尾两点的标签往里收，免得压到纵轴刻度或出界
+        const above = py(rec.total) - 16 > top + 10;
+        const lx = Math.min(Math.max(px(i), axL + 10), axR - 10);
+        textAt(String(rec.total), lx, py(rec.total) + (above ? -16 : 26),
+               15, isNow ? '600' : '400', IMG_C.ink, 'center');
+        textAt(rec.date.slice(5), px(i), bot + 26, 14, '400', IMG_C.muted, 'center');
+      });
+
+      y = bot + 58;
     };
 
     // ── 抬头
@@ -864,6 +931,22 @@
       y += 30;
     }
 
+    // ── 总分变化折线
+    const all = loadRecords().sort((a, b) => a.ts.localeCompare(b.ts));
+    const MAX_POINTS = 10;                 // 再多横轴日期就挤成一团了
+    const history = all.slice(-MAX_POINTS);
+    if (history.length >= 2) {
+      rule();
+      y += 34;
+      text('总分变化', P, 20, '600', IMG_C.ink);
+      y += 26;
+      chart(history);
+      text(all.length > MAX_POINTS
+        ? `虚线为划界分 62　·　只显示最近 ${MAX_POINTS} 次（共 ${all.length} 次）`
+        : '虚线为划界分 62', P, 15, '400', IMG_C.muted);
+      y += 30;
+    }
+
     // ── 关键题
     if (r.critical.length) {
       rule();
@@ -915,19 +998,24 @@
     return cv;
   }
 
+  let imgCanvas = null;         // 留着按需生成 blob，供分享/下载用
+
+  function isTouch() {
+    return navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
+  }
+
   function showImage() {
-    let url;
     try {
-      url = buildImage().toDataURL('image/png');
+      imgCanvas = buildImage();
+      // <img> 用 data URL：iOS 上长按 blob URL 的图片存相册经常失败，data URL 稳定
+      $('img-out').src = imgCanvas.toDataURL('image/png');
     } catch (e) {
       window.alert('图片生成失败，请改用「复制为文字」。');
       return;
     }
-    $('img-out').src = url;
-    $('img-download').dataset.url = url;
-    $('img-tip').textContent = (navigator.maxTouchPoints > 0 || 'ontouchstart' in window)
-      ? '长按图片即可保存到相册，或直接转发给咨询师'
-      : '右键图片可另存为，也可以点下面的「下载图片」';
+    $('img-tip').textContent = isTouch()
+      ? '长按图片可保存到相册，也可以点下面的「保存 / 分享图片」'
+      : '右键图片可另存为，也可以点下面的「保存 / 分享图片」';
     $('img-overlay').hidden = false;
     document.body.style.overflow = 'hidden';
   }
@@ -935,7 +1023,58 @@
   function hideImage() {
     $('img-overlay').hidden = true;
     $('img-out').removeAttribute('src');
+    imgCanvas = null;
     document.body.style.overflow = '';
+  }
+
+  function canvasBlob(cv) {
+    return new Promise((resolve, reject) => {
+      if (cv.toBlob) cv.toBlob((b) => b ? resolve(b) : reject(new Error('toBlob 返回空')), 'image/png');
+      else reject(new Error('不支持 toBlob'));
+    });
+  }
+
+  /* 保存图片。
+   * 移动端不能用 <a download href="data:...">：iOS Safari 对 data URL 忽略
+   * download 属性，App 内置浏览器更是直接屏蔽下载，点了完全没反应。
+   * 系统分享面板才是手机上真正可用的路径（iOS 里就有「存储到照片」）。 */
+  async function saveImage() {
+    if (!imgCanvas) return;
+    let blob;
+    try {
+      blob = await canvasBlob(imgCanvas);
+    } catch (e) {
+      window.alert('图片导出失败，请改用长按图片保存。');
+      return;
+    }
+
+    const name = fileStem() + '.png';
+    if (typeof File === 'function' && navigator.share && navigator.canShare) {
+      try {
+        const file = new File([blob], name, { type: 'image/png' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file] });
+          return;
+        }
+      } catch (e) {
+        if (e && e.name === 'AbortError') return;   // 用户自己取消了分享
+        /* 其余情况落到下面的下载分支 */
+      }
+    }
+
+    // 回退：blob URL 下载。桌面浏览器和安卓 Chrome 都能正常触发。
+    try {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (e) {
+      window.alert('这个浏览器不支持直接下载，请长按上面的图片保存。');
+    }
   }
 
   async function copyText() {
@@ -991,14 +1130,7 @@
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && !$('img-overlay').hidden) hideImage();
     });
-    $('img-download').addEventListener('click', () => {
-      const a = document.createElement('a');
-      a.href = $('img-download').dataset.url || '';
-      a.download = fileStem() + '.png';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    });
+    $('img-save').addEventListener('click', saveImage);
 
     $('btn-again').addEventListener('click', () => {
       resetForm();

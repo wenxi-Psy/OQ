@@ -161,18 +161,30 @@ kbd {
 /* 结果图片预览 */
 .overlay {
   position: fixed; inset: 0; z-index: 50;
+  /* 高度必须用动态视口：iOS Safari 与微信里 inset:0 取的是「大视口」，
+   * 底部一排按钮会被浏览器工具栏盖住，点不到。100dvh 跟随可视高度。 */
+  height: 100vh;
+  height: 100dvh;
   background: rgba(0, 0, 0, .72);
   display: flex; align-items: center; justify-content: center;
-  padding: calc(16px + env(safe-area-inset-top)) 12px calc(16px + env(safe-area-inset-bottom));
+  padding: calc(12px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom));
 }
 .overlay[hidden] { display: none; }
 .overlay-inner {
   background: var(--surface); border-radius: var(--radius);
-  padding: 14px; width: 100%; max-width: 460px;
+  padding: 12px; width: 100%; max-width: 460px;
   max-height: 100%; display: flex; flex-direction: column; gap: 10px;
 }
-.overlay-tip { margin: 0; font-size: 13px; color: var(--muted); text-align: center; }
-.overlay-scroll { overflow: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; }
+/* 顶部这一行是兜底：即使底部按钮被工具栏遮住，关闭键始终够得着 */
+.overlay-head { display: flex; align-items: center; gap: 8px; flex: none; }
+.overlay-tip { margin: 0; flex: 1; font-size: 13px; line-height: 1.45; color: var(--muted); }
+.overlay-x {
+  flex: none; width: 40px; height: 40px; padding: 0;
+  font-size: 26px; line-height: 1; color: var(--muted);
+  background: var(--bg); border: 1px solid var(--line); border-radius: 999px;
+}
+.overlay-x:active { background: var(--line-soft); }
+.overlay-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; }
 .overlay-scroll img {
   display: block; width: 100%; height: auto; border-radius: 8px;
   border: 1px solid var(--line);

@@ -211,11 +211,13 @@
 <!-- 结果图片预览 -->
 <div class="overlay" id="img-overlay" hidden>
   <div class="overlay-inner">
-    <p class="overlay-tip" id="img-tip">长按图片即可保存到相册</p>
+    <div class="overlay-head">
+      <p class="overlay-tip" id="img-tip">长按图片即可保存到相册</p>
+      <button type="button" class="overlay-x" id="img-close" aria-label="关闭">×</button>
+    </div>
     <div class="overlay-scroll"><img id="img-out" alt="OQ-45.2 结果图片"></div>
     <div class="btnrow">
-      <button type="button" id="img-download">下载图片</button>
-      <button type="button" id="img-close">关闭</button>
+      <button type="button" class="wide" id="img-save">保存 / 分享图片</button>
     </div>
   </div>
 </div>
