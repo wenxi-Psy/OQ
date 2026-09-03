@@ -1,15 +1,19 @@
-/* 条目对照表（codebook）与导出用的公共工具
+/* 条目对照表与导出用的公共工具
  *
- * 这里是「变量名」的唯一出处：页面导出、仓库里的 codebook.csv、日后可能的后端
- * 都从 oqVariable() 取名，任何一处改了名字，其余地方跟着变。
+ * 这里是「变量名」的唯一出处：页面导出、日后可能的后端都从 oqVariable() 取名，
+ * 改一处，其余地方跟着变。
  *
  * 变量名用零填充的 q01–q45，而不是数组下标：
  * 题目顺序万一调整，靠位置对齐的数据会整体错位，靠名字对齐的不会。
+ *
+ * oqCodebook() 给出每道题的说明字段（题干、维度、计分方向、「不适用」规则、
+ * 关键题阈值）。CSV 导出把这些字段直接写进每一行，所以导出的文件自己就说得清
+ * 自己，不需要再配一张单独的对照表。
  */
 
 /* 导出文件的格式版本。改动导出的列名 / 字段结构时 +1，
  * 读数据的脚本可以据此判断该按哪一版解析。 */
-const OQ_EXPORT_SCHEMA = '2.0.0';
+const OQ_EXPORT_SCHEMA = '3.0.0';
 
 /* 变量名：第 1 题 → q01，第 45 题 → q45 */
 function oqVariable(id) { return 'q' + String(id).padStart(2, '0'); }
@@ -95,19 +99,4 @@ function oqCsvCell(v) {
 /* 拼一份 CSV 文本。带 UTF-8 BOM，否则 Excel 打开中文是乱码；行尾用 CRLF。 */
 function oqCsvText(rows) {
   return '﻿' + rows.map((r) => r.map(oqCsvCell).join(',')).join('\r\n') + '\r\n';
-}
-
-/* codebook.csv 的完整文本。页面上的下载按钮和 tools/build-codebook.js 用的是同一个函数，
- * 所以仓库里那份文件和页面导出的那份不会对不上。 */
-function oqCodebookCSV() {
-  const { columns, rows } = oqCodebook();
-  return oqCsvText([columns].concat(rows.map((r) => columns.map((c) => r[c]))));
-}
-
-/* 供 tools/build-codebook.js 在 Node 里调用；浏览器里没有 module，跳过。 */
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = {
-    OQ_EXPORT_SCHEMA, OQ_VALUE_KINDS,
-    oqVariable, oqItemIdOf, oqVersions, oqCodebook, oqCodebookCSV, oqCsvCell, oqCsvText,
-  };
 }

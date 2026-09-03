@@ -220,8 +220,9 @@
         <li>中文版分量表内部一致性偏低（α 0.57–0.91），维度分只作定性线索，不单独作为疗效指标。</li>
         <li>「恢复 / 改善 / 无变化 / 恶化」的判定：Jacobson &amp; Truax (1991)。</li>
         <li>漏答 1–4 题用同维度其余题目均值（四舍五入）填补，≥5 题整份作废。</li>
-        <li>CSV / JSON 里每题给四个值：<code>_raw</code> 作答者勾选的原始值（未反向）、<code>_na</code> 是否选了「不适用」、<code>_paper</code> 题本等价勾选值（「不适用」正向题记 0、反向题记 4）、<code>_scored</code> 计入总分的值（已反向、已填补）。两份文件都带上条目版本、计分版本与完成时间。</li>
-        <li>逐题的变量名（<code>q01</code>–<code>q45</code>）、维度、计分方向与「不适用」换算规则，都在 codebook 里，配合 CSV 一起读：<button type="button" class="linkbtn" id="btn-codebook">下载 codebook.csv</button></li>
+        <li>CSV 一题一行，共 45 行：每行左边写明这道题是什么（题干、维度、计分方向、「不适用」换算、关键题阈值），右边是这次答了什么、算成几分，文件自己就说得清自己。</li>
+        <li>作答值分四列，不混在一起：<code>response_raw</code> 勾选的原始值（未反向）、<code>not_applicable</code> 是否选了「不适用」、<code>paper_equivalent</code> 题本等价勾选值（「不适用」正向题记 0、反向题记 4）、<code>scored</code> 计入总分的值（已反向、已填补）。另有 <code>missing</code> 与 <code>imputed</code> 标出哪几题是估算的。</li>
+        <li>JSON 逐题按 <code>q01</code>–<code>q45</code> 装成对象。两份文件都带上条目版本、计分版本与完成时间。</li>
       </ul>
     </details>
 

@@ -37,19 +37,10 @@
 index.html               页面骨架：说明页 / 填答页 / 结果页
 assets/items.js          45 题数据（题干、维度归属、反向标记、关键题标记）+ 条目版本号
 assets/score.js          计分、漏答填补、常模判定、Jacobson-Truax + 计分版本号
-assets/codebook.js       变量名（q01–q45）、条目对照表、CSV 工具、导出格式版本号
+assets/codebook.js       变量名（q01–q45）、条目说明字段、CSV 工具、导出格式版本号
 assets/app.js            交互、渲染、本地存储、匿名编号、导出
 assets/style.css         样式（移动优先，支持深色模式与打印）
-codebook.csv             逐题的变量说明表，由下面的脚本生成，不要手改
-tools/build-codebook.js  从 assets/ 生成 codebook.csv（Node，仅开发时用，页面不依赖）
 .nojekyll                跳过 GitHub Pages 的 Jekyll 处理
-```
-
-页面本身仍是零构建的静态站点：`tools/` 下的脚本只在改动条目数据后跑一次。
-
-```bash
-node tools/build-codebook.js          # 重新生成 codebook.csv
-node tools/build-codebook.js --check  # 只检查是否与 assets/ 一致（提交前自查）
 ```
 
 ---
@@ -60,7 +51,7 @@ node tools/build-codebook.js --check  # 只检查是否与 assets/ 一致（提�
 
 - 五点计分 0–4，分数越高困扰越重。
 - **9 道反向题**（1, 12, 13, 20, 21, 24, 31, 37, 43）在 `score.js` 中**只反转一次**。
-  导出时把反向前后的值分列给出（`_raw` / `_scored`），列名和规则写在 `codebook.csv` 里，避免录入时二次反转。
+  导出时把反向前后的值分列给出（`response_raw` / `scored`），计分算式逐行写在旁边，避免录入时二次反转。
 - 三个维度：症状困扰 SD（25 题，0–100）、人际关系 IR（11 题，0–44）、社会角色 SR（9 题，0–36）；
   总分 0–180。
 
@@ -83,7 +74,7 @@ node tools/build-codebook.js --check  # 只检查是否与 assets/ 一致（提�
 
 - 页面内部记为 `'na'`，`oqScore()` 一律记 0 分困扰
 - 导出时 `oqPaperValue()` 换算回题本等价值（正向题 0，反向题 4），便于与纸笔施测数据对齐
-- 导出里「不适用」单独占一列（`qNN_na`），不与"答了 0 分"混在一起；另有 `na_items` 汇总题号
+- 导出里「不适用」单独占一列（`not_applicable`），不与"答了 0 分"混在一起
 - 「不适用」不触发关键题跟进（不喝酒的人不会因第 11、26、32 题被标记）
 
 按钮文字逐题写具体（如「不适用：目前没有恋爱关系」「不适用：我不喝酒」），
@@ -200,8 +191,7 @@ SR  13 /  36 = 36.1%
 无痕模式下写不进 `localStorage`，此时编号只在本次会话有效，导出文件里会标 `user_id_persistent: false`。
 
 > 折叠是有意的：来访者的任务是填完 45 题看结果，一串 `oq-3f7a…` 摊在说明页上对他是纯噪音。
-> 只有换设备这一个场景需要它，那就只在那个场景下才展开。同理，「下载 codebook」按钮放在
-> 结果页的「分数是怎么来的（给咨询师）」折叠区里，不占导出按钮那一排。
+> 只有换设备这一个场景需要它，那就只在那个场景下才展开。
 
 ### 记录跟着浏览器走
 
@@ -275,27 +265,63 @@ CSS 箭头放在右侧，标题因此与其他卡片标题严格对齐。
 | **保存为图片** | **手机端首选**：长按存进相册或直接转发给咨询师 |
 | 复制为文字 | 直接贴进个案记录 |
 | 打印 / 存 PDF | 电脑上可选「另存为 PDF」 |
-| CSV | 进 Excel / SPSS：一次填写一行，逐题四列，表头是英文变量名 |
+| CSV | 进 Excel / SPSS：**一题一行，共 45 行**，每行自带这道题的说明 |
 | JSON | 同样的内容，逐题按 `q01`–`q45` 装成对象 |
-| codebook | 逐题的变量说明表，与仓库根目录的 `codebook.csv` 是同一份；入口在「分数是怎么来的」折叠区内 |
 
 「复制为文字」的正文保持原样，只在末尾多一行方括号包起来的留档信息：
 `［oq-3f7a…　条目 1.0.0／计分 1.0.0　完成于 2026-09-03 15:34］`。
 贴进个案记录后，日后能查出这份结果属于谁、由哪版条目和计分算出来。时间是本地时间，只到分钟。
 
-### 一次填写摊成哪几类值
+### CSV 是长表，一题一行
+
+一次填写导出 45 行。每行左边写明**这道题是什么**，右边是**这次答了什么、算成几分**，
+末尾跟上这次施测的公共信息（逐行重复）：
+
+| 列组 | 列 |
+|---|---|
+| 谁、哪一次 | `user_id` `record_id` `assessment_date` `baseline` |
+| 这道题是什么 | `variable` `item_id` `item_text` `dimension` `dimension_label` `reverse` |
+| 这次答了什么 | `response_raw` `response_label` `not_applicable` `missing` `paper_equivalent` `scored` `imputed` `critical_flagged` |
+| 这道题的计分规则 | `response_min` `response_max` `response_labels` `scoring_rule` `na_option` `na_label` `na_paper_value` `na_scored_value` `critical` `critical_threshold` |
+| 这次的总体结果 | `total` `sd` `ir` `sr` `severity` `above_cutoff` `n_answered` `n_missing` |
+| 出处与版本 | `label` `started_at` `completed_at` `duration_sec` `tz_offset_min` `instrument` `translation` `items_version` `scoring_version` `export_schema` |
+
+这么排是为了**一份文件自己说得清自己**：在 Excel 里打开，第一屏就能看到谁、哪道题、
+题干是什么、答了"有时"、算成 2 分，用不着另配一张对照表。
+
+> 早先的版本是宽表——一次填写一行、逐题四列，一共 206 列。数据是全的，但人打开只看到
+> 一排 `q01_raw q01_na q01_paper q01_scored …`，得对着单独的 codebook 查才知道每列是什么。
+> 现在把 codebook 的内容直接摊进每一行，那份单独的 `codebook.csv` 就不需要了。
+
+代价是做纵向分析前要转回宽表，一行代码的事：
+
+```python
+# pandas：多份导出先 concat，再 pivot
+wide = df.pivot(index='record_id', columns='variable', values='scored')
+```
+
+```r
+# R
+wide <- tidyr::pivot_wider(df, id_cols = record_id,
+                           names_from = variable, values_from = scored)
+```
+
+多份 CSV 首尾相接就是一张长表，`user_id` 那一列把同一个人的几次串起来。
+
+### 一次作答摊成哪几类值
 
 同一格里的 `0` 可能是三件完全不同的事：他真的答了"不是"、这题对他不适用、他漏答了被均值填补。
-事后分不出来，数据就废了。所以每题拆成四列（JSON 里是四个字段）：
+事后分不出来，数据就废了。所以每题分成四列（JSON 里是四个字段）：
 
-| 后缀 / 字段 | 含义 |
+| CSV 列 / JSON 字段 | 含义 |
 |---|---|
-| `_raw` / `raw` | 作答者勾选的原始值 0–4，**未反向计分**；漏答与「不适用」留空（JSON 里为 `null`） |
-| `_na` / `not_applicable` | 是否选了「不适用」，1 / 0 |
-| `_paper` / `paper_equivalent` | 纸质题本上的等价勾选值（「不适用」正向题 0、反向题 4），仍未反向，便于与纸笔数据并表 |
-| `_scored` / `scored` | **计入总分的值**：已反向计分、「不适用」记 0、漏答已按同维度均值填补 |
+| `response_raw` / `raw` | 作答者勾选的原始值 0–4，**未反向计分**；漏答与「不适用」留空（JSON 里为 `null`） |
+| `not_applicable` | 是否选了「不适用」，1 / 0 |
+| `paper_equivalent` | 纸质题本上的等价勾选值（「不适用」正向题 0、反向题 4），仍未反向，便于与纸笔数据并表 |
+| `scored` | **计入总分的值**：已反向计分、「不适用」记 0、漏答已按同维度均值填补 |
 
-JSON 里每题还带 `missing` 与 `imputed` 两个布尔值，直接标出哪几题是估算来的。
+另有 `missing` 与 `imputed` 标出哪几题是估算来的；CSV 还多给一列 `response_label`，
+把勾选值写成中文（"有时"），肉眼读的时候不用回头对照。
 
 ### 变量名用 `q01`–`q45`，不用数组下标
 
@@ -327,25 +353,6 @@ JSON 的逐题结果以前是一个长度 45 的数组，靠位置对齐——**
 
 三个版本号分开记，是因为它们确实会分开变：只调常模不动条目、只改导出列名不动计分，
 都是会发生的事。
-
-### codebook.csv
-
-仓库根目录有一份 `codebook.csv`，一题一行，说明变量名、题干、维度、计分方向、
-「不适用」规则和关键题阈值：
-
-| 列 | 内容 |
-|---|---|
-| `variable` | `q01`–`q45`，与导出文件的列名 / 键名一致 |
-| `item_id` / `item_text` | 题号与题干 |
-| `dimension` / `dimension_label` | `SD` / `IR` / `SR` 与中文名 |
-| `reverse` / `scoring_rule` | 是否反向题；`scored = raw` 或 `scored = 4 - raw` |
-| `response_min` / `response_max` / `response_labels` | 取值范围与 `0=不是\|1=很少\|…` |
-| `na_option` / `na_label` / `na_paper_value` / `na_scored_value` | 这题有没有「不适用」，按钮文字，以及它换算成的题本值与计分值 |
-| `critical` / `critical_threshold` | 是否关键题，以及 `raw` 达到多少就要在会谈中跟进 |
-
-它由 `node tools/build-codebook.js` 从 `assets/items.js` 生成，**不要手改**——
-条目数据是唯一出处，结果页的「下载 codebook」按钮调的也是同一个函数，两份内容不会对不上。
-改完条目数据记得重新生成，`--check` 可以在提交前确认。
 
 ### 为什么加「保存为图片」
 
