@@ -43,6 +43,22 @@ assets/style.css         样式（移动优先，支持深色模式与打印）
 .nojekyll                跳过 GitHub Pages 的 Jekyll 处理
 ```
 
+### 改完 assets/ 记得改缓存版本号
+
+`index.html` 里对 `assets/` 的每个引用都带一个 `?v=20260903a`：
+
+```html
+<link rel="stylesheet" href="assets/style.css?v=20260903a">
+<script src="assets/app.js?v=20260903a"></script>
+```
+
+GitHub Pages 给静态资源发的是 `Cache-Control: max-age=600`。只改文件内容的话，
+**已经打开过页面的浏览器在十分钟内仍然用缓存里的旧 JS**，新页面配旧脚本，
+表现是"改动看起来没生效"——真实踩过一次：代码已经合并上线，导出的 CSV 还是上一版的格式。
+
+改完 `assets/` 下任何文件，把 `index.html` 里的 `v` 一起改掉（日期 + 当天序号即可），
+浏览器就会当成新地址重新取。
+
 ---
 
 ## 实现要点

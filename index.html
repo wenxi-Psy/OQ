@@ -7,7 +7,7 @@
 <meta name="robots" content="noindex">
 <title>OQ-45.2 心理咨询效果问卷</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23426b78'/%3E%3Cpath d='M8 21.5 L13.5 16 L18.5 19 L24 10' fill='none' stroke='%23fff' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/style.css?v=20260903a">
 </head>
 <body>
 
@@ -247,9 +247,12 @@
   </div>
 </div>
 
-<script src="assets/items.js"></script>
-<script src="assets/score.js"></script>
-<script src="assets/codebook.js"></script>
-<script src="assets/app.js"></script>
+<!-- ?v= 是缓存版本号：GitHub Pages 给资源发 Cache-Control: max-age=600，
+     光更新文件内容的话，浏览器十分钟内仍在用缓存里的旧 JS，页面和代码会对不上。
+     改完 assets/ 下任何文件，把这里的 v 一起改掉（日期 + 当天序号即可）。 -->
+<script src="assets/items.js?v=20260903a"></script>
+<script src="assets/score.js?v=20260903a"></script>
+<script src="assets/codebook.js?v=20260903a"></script>
+<script src="assets/app.js?v=20260903a"></script>
 </body>
 </html>
