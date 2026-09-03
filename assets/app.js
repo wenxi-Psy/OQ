@@ -172,9 +172,10 @@
     const uid = getUid();
     $('uid-value').textContent = uid;
     $('uid-note').textContent = uidPersistent
-      ? '这台设备自动生成，不含个人信息，也不会上传。导出的 CSV / JSON 里会带上它，'
-        + '咨询师据此就能确认几份数据来自同一个人。换设备时把它抄过去，记录就接得上。'
-      : '浏览器不允许保存数据，这个编号只在本次填写有效；导出文件里仍会带上它。';
+      ? '这台设备有一串自动生成的匿名编号，不含个人信息，也不会上传。'
+        + '换手机或换浏览器后，把它填到新设备上，导出的数据就还能认出是同一个人。'
+        + '（本机已保存的记录不会跟着走，仍留在原来的设备上。）'
+      : '浏览器不允许保存数据，这串编号只在本次填写有效；导出的文件里仍会带上它。';
   }
 
   async function copyUid() {
@@ -191,7 +192,7 @@
 
   function editUid() {
     const v = (window.prompt(
-      '把旧设备上的匿名编号填进来，两台设备的记录就能对上。\n\n'
+      '把旧设备上的匿名编号填进来，两边导出的数据就能对上。\n\n'
       + '只允许字母、数字、- 和 _，4–64 位。', getUid()) || '').trim();
     if (!v) return;
     if (!UID_RE.test(v)) { window.alert('这个编号不符合格式（字母、数字、- 或 _，4–64 位）。'); return; }
@@ -875,7 +876,6 @@
     L.push('OQ-45.2 结果');
     L.push('填写日期：' + current.date);
     if (current.name) L.push('编号：' + current.name);
-    L.push('匿名编号：' + current.uid + '（同一台设备上多次填写共用，用于对齐纵向记录）');
     if (current.baseline) L.push('（基线）');
     L.push('');
     L.push(`总分：${r.total} / 180　（参考线 62；${r.aboveCutoff ? '达到或超过' : '低于'}参考线）`);
@@ -908,9 +908,19 @@
     L.push('常模：总分划界分 62、可信变化指数 17，李钰静 (2010)；');
     L.push('分量表参考线与严重度分层取自美国常模，仅供参考。');
     L.push('本量表为效果监测工具，不作诊断用途，结果需由受训临床工作者解读。');
-    L.push(`条目版本 ${current.itemsVersion}　计分版本 ${current.scoringVersion}　`
-      + `完成时间 ${current.completedAt}`);
+    // 留档用的一行：贴进个案记录后，日后能查出这份结果是哪版条目、哪版计分算出来的，
+    // 以及它属于哪个匿名编号。写成一行，不占正文篇幅。
+    L.push(`［${current.uid}　条目 ${current.itemsVersion}／计分 ${current.scoringVersion}　`
+      + `完成于 ${localStamp(current.completedAt)}］`);
     return L.join('\n');
+  }
+
+  /* ISO 时间戳转本地时间，只到分钟：2026-09-03 15:34 */
+  function localStamp(iso) {
+    const d = new Date(iso);
+    const p = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} `
+         + `${p(d.getHours())}:${p(d.getMinutes())}`;
   }
 
   function download(name, text, mime) {
