@@ -957,56 +957,84 @@
     };
   }
 
+  /* CSV 一次填写导出 45 行，一题一行（长表）。
+   *
+   * 每行左边写明这道题是什么——题干、维度、是不是反向题、「不适用」怎么换算、
+   * 关键题阈值——右边是这次答了什么、算成了几分，末尾跟上这次施测的公共信息。
+   * 这样一份文件自己就说得清自己，不必再配一张单独的对照表。
+   *
+   * 代价是做纵向分析前要转回宽表：pandas 里
+   * `df.pivot(index='record_id', columns='variable', values='scored')`，
+   * R 里 `pivot_wider()`。多份文件首尾相接就是一张长表，直接能拼。
+   *
+   * 列的排法照「先看谁、再看哪道题、再看答了什么」的顺序，
+   * 在 Excel 里不用横向滚动就能读到关键的几列。
+   */
+  const CSV_COLS = [
+    // 谁、哪一次
+    'user_id', 'record_id', 'assessment_date', 'baseline',
+    // 这道题是什么
+    'variable', 'item_id', 'item_text', 'dimension', 'dimension_label', 'reverse',
+    // 这次答了什么、算成几分
+    'response_raw', 'response_label', 'not_applicable', 'missing',
+    'paper_equivalent', 'scored', 'imputed', 'critical_flagged',
+    // 这道题的计分规则（原先单独放在 codebook 里的部分）
+    'response_min', 'response_max', 'response_labels', 'scoring_rule',
+    'na_option', 'na_label', 'na_paper_value', 'na_scored_value',
+    'critical', 'critical_threshold',
+    // 这次施测的总体结果
+    'total', 'sd', 'ir', 'sr', 'severity', 'above_cutoff', 'n_answered', 'n_missing',
+    // 出处与版本
+    'label', 'started_at', 'completed_at', 'duration_sec', 'tz_offset_min',
+    'instrument', 'translation', 'items_version', 'scoring_version', 'export_schema',
+  ];
+
   function exportCSV() {
     const r = current.result;
-    const imputedIds = r.imputed.map((x) => x.id);
-    const naIds = [], missingIds = [];
-    OQ_ITEMS.forEach((it, i) => {
-      if (current.raw[i] === 'na') naIds.push(it.id);
-      if (current.raw[i] === null || current.raw[i] === undefined) missingIds.push(it.id);
+    const cb = oqCodebook().rows;                        // 每题的说明字段
+    const imputed = new Set(r.imputed.map((x) => x.id));
+    const flagged = new Set(r.critical.map((c) => c.id));
+
+    // 施测级信息，45 行里逐行重复——长表就是这么用的，pivot 回去时它们是索引
+    const shared = {
+      user_id: current.uid,
+      record_id: current.id,
+      assessment_date: current.date,
+      label: current.name,
+      baseline: current.baseline ? 1 : 0,
+      total: r.total, sd: r.dims.SD, ir: r.dims.IR, sr: r.dims.SR,
+      severity: r.severity.label,
+      above_cutoff: r.aboveCutoff ? 1 : 0,
+      n_answered: r.answered,
+      n_missing: OQ_ITEMS.length - r.answered,
+      started_at: current.startedAt || '',
+      completed_at: current.completedAt,
+      duration_sec: current.durationSec === null ? '' : current.durationSec,
+      tz_offset_min: current.tzOffsetMin,
+      instrument: OQ_INSTRUMENT.name,
+      translation: OQ_INSTRUMENT.translation,
+      items_version: current.itemsVersion,
+      scoring_version: current.scoringVersion,
+      export_schema: OQ_EXPORT_SCHEMA,
+    };
+
+    const rows = OQ_ITEMS.map((item, i) => {
+      const v = itemValues(i);
+      return Object.assign({}, cb[i], shared, {
+        // 作答者勾的那一档，同时给数值和中文标签，不用回头查对照表
+        response_raw: v.raw === null ? '' : v.raw,
+        response_label: v.na ? '不适用' : (v.raw === null ? '' : OQ_OPTIONS[v.raw]),
+        not_applicable: v.na ? 1 : 0,
+        missing: (v.raw === null && !v.na) ? 1 : 0,
+        paper_equivalent: v.paper === null ? '' : v.paper,
+        scored: v.scored === null ? '' : v.scored,
+        imputed: imputed.has(item.id) ? 1 : 0,
+        critical_flagged: flagged.has(item.id) ? 1 : 0,
+      });
     });
 
-    // 表头用英文变量名：CSV 是给统计软件读的，SPSS / R 的变量名不宜用中文。
-    // 每一列的含义见仓库根目录的 codebook.csv 与 README。
-    const cols = [
-      ['user_id',          current.uid],
-      ['record_id',        current.id],
-      ['assessment_date',  current.date],
-      ['label',            current.name],          // 来访者自填的编号或昵称，可为空
-      ['baseline',         current.baseline ? 1 : 0],
-      ['started_at',       current.startedAt || ''],
-      ['completed_at',     current.completedAt],
-      ['duration_sec',     current.durationSec === null ? '' : current.durationSec],
-      ['tz_offset_min',    current.tzOffsetMin],
-      ['instrument',       OQ_INSTRUMENT.name],
-      ['translation',      OQ_INSTRUMENT.translation],
-      ['items_version',    current.itemsVersion],
-      ['scoring_version',  current.scoringVersion],
-      ['export_schema',    OQ_EXPORT_SCHEMA],
-      ['total',            r.total],
-      ['sd',               r.dims.SD],
-      ['ir',               r.dims.IR],
-      ['sr',               r.dims.SR],
-      ['severity',         r.severity.label],
-      ['above_cutoff',     r.aboveCutoff ? 1 : 0],
-      ['n_answered',       r.answered],
-      ['n_missing',        missingIds.length],
-      ['missing_items',    missingIds.join(' ')],
-      ['imputed_items',    imputedIds.join(' ')],
-      ['na_items',         naIds.join(' ')],
-      ['critical_items',   r.critical.map((c) => c.id).join(' ')],
-    ];
-
-    OQ_ITEMS.forEach((it, i) => {
-      const q = oqVariable(it.id), v = itemValues(i);
-      cols.push([q + '_raw',    v.raw === null ? '' : v.raw]);
-      cols.push([q + '_na',     v.na ? 1 : 0]);
-      cols.push([q + '_paper',  v.paper === null ? '' : v.paper]);
-      cols.push([q + '_scored', v.scored === null ? '' : v.scored]);
-    });
-
-    download(fileStem() + '.csv',
-      oqCsvText([cols.map((c) => c[0]), cols.map((c) => c[1])]), 'text/csv');
+    const table = [CSV_COLS].concat(rows.map((row) => CSV_COLS.map((c) => row[c])));
+    download(fileStem() + '.csv', oqCsvText(table), 'text/csv');
   }
 
   function exportJSON() {
@@ -1069,15 +1097,10 @@
         subscale_cutoffs: { SD: OQ_NORMS.SD.cutoff, IR: OQ_NORMS.IR.cutoff, SR: OQ_NORMS.SR.cutoff },
         subscale_source: '美国常模（仅供参考）',
       },
-      codebook: '各题的变量名、维度、计分方向与「不适用」规则见仓库根目录的 codebook.csv，'
-        + '或在结果页点「下载 codebook」',
+      codebook: '各题的变量名、维度、计分方向、「不适用」换算与关键题阈值，'
+        + '在 CSV 导出里逐行都带；本文件的 responses 每题也给了 dimension 与 reverse',
     };
     download(fileStem() + '.json', JSON.stringify(data, null, 2), 'application/json');
-  }
-
-  /* 条目对照表：和仓库根目录的 codebook.csv 出自同一个函数，内容一致。 */
-  function exportCodebook() {
-    download('OQ45_codebook_v' + OQ_ITEMS_VERSION + '.csv', oqCodebookCSV(), 'text/csv');
   }
 
   /* ══════════ 结果图片 ══════════
@@ -1586,7 +1609,6 @@
     $('btn-copy').addEventListener('click', copyText);
     $('btn-csv').addEventListener('click', exportCSV);
     $('btn-json').addEventListener('click', exportJSON);
-    $('btn-codebook').addEventListener('click', exportCodebook);
     $('btn-print').addEventListener('click', () => window.print());
     $('btn-image').addEventListener('click', showImage);
 
