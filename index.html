@@ -40,6 +40,19 @@
       <p><strong>你的作答不会上传</strong>，全部计算都在这个页面里完成。</p>
       <p>结果会自动存在<strong>这台设备的浏览器</strong>里，方便下次看变化。用共用的手机或电脑填写时，看完请点「清除本机记录」。</p>
       <p class="storage-line">本机当前已保存 <strong id="intro-count">0</strong> 份记录。<button type="button" class="linkbtn" id="intro-clear">清除本机记录</button></p>
+
+      <details class="subfold">
+        <summary>换手机或换浏览器时，怎么让记录接上</summary>
+        <div class="subfold-body">
+          <p class="fieldnote" id="uid-note"></p>
+          <p class="uid-line"><code id="uid-value">—</code></p>
+          <p class="uid-actions">
+            <button type="button" class="linkbtn" id="uid-copy">复制</button>
+            <button type="button" class="linkbtn" id="uid-edit">填入旧设备的编号</button>
+            <span class="copied" id="uid-copied" hidden>已复制</span>
+          </p>
+        </div>
+      </details>
     </section>
 
     <section class="card">
@@ -60,15 +73,6 @@
         <span>这是我的第一次填写（基线）</span>
       </label>
 
-      <div class="uid-box">
-        <p class="uid-line"><span>匿名编号</span><code id="uid-value">—</code></p>
-        <p class="fieldnote" id="uid-note"></p>
-        <p class="uid-actions">
-          <button type="button" class="linkbtn" id="uid-copy">复制</button>
-          <button type="button" class="linkbtn" id="uid-edit">换成已有编号</button>
-          <span class="copied" id="uid-copied" hidden>已复制</span>
-        </p>
-      </div>
     </section>
 
     <button type="button" class="primary big" id="btn-start">开始填写</button>
@@ -202,10 +206,9 @@
         <button type="button" id="btn-print">打印 / 存 PDF</button>
         <button type="button" id="btn-csv">下载 CSV</button>
         <button type="button" id="btn-json">下载 JSON</button>
-        <button type="button" id="btn-codebook">下载 codebook</button>
       </div>
       <p class="copied" id="copied" hidden>已复制到剪贴板</p>
-      <p class="fieldnote" id="print-note">「打印 / 存 PDF」在电脑上可选「另存为 PDF」，手机上多数只能连打印机。CSV / JSON 供咨询师留档，两者都带上量表版本、计分版本、完成时间和匿名编号；codebook 是逐题的变量说明表，配合 CSV 读。</p>
+      <p class="fieldnote" id="print-note">「打印 / 存 PDF」在电脑上可选「另存为 PDF」，手机上多数只能连打印机。CSV / JSON 供咨询师留档。</p>
     </section>
 
     <details class="card sources">
@@ -217,7 +220,8 @@
         <li>中文版分量表内部一致性偏低（α 0.57–0.91），维度分只作定性线索，不单独作为疗效指标。</li>
         <li>「恢复 / 改善 / 无变化 / 恶化」的判定：Jacobson &amp; Truax (1991)。</li>
         <li>漏答 1–4 题用同维度其余题目均值（四舍五入）填补，≥5 题整份作废。</li>
-        <li>CSV / JSON 里每题给四个值：<code>_raw</code> 作答者勾选的原始值（未反向）、<code>_na</code> 是否选了「不适用」、<code>_paper</code> 题本等价勾选值（「不适用」正向题记 0、反向题记 4）、<code>_scored</code> 计入总分的值（已反向、已填补）。变量名 <code>q01</code>–<code>q45</code> 与题号对应，详见 codebook。</li>
+        <li>CSV / JSON 里每题给四个值：<code>_raw</code> 作答者勾选的原始值（未反向）、<code>_na</code> 是否选了「不适用」、<code>_paper</code> 题本等价勾选值（「不适用」正向题记 0、反向题记 4）、<code>_scored</code> 计入总分的值（已反向、已填补）。两份文件都带上条目版本、计分版本与完成时间。</li>
+        <li>逐题的变量名（<code>q01</code>–<code>q45</code>）、维度、计分方向与「不适用」换算规则，都在 codebook 里，配合 CSV 一起读：<button type="button" class="linkbtn" id="btn-codebook">下载 codebook.csv</button></li>
       </ul>
     </details>
 
