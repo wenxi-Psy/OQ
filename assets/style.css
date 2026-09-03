@@ -285,6 +285,23 @@ details.sources[open] > summary { padding-bottom: var(--sp-1); }
 }
 .check input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
 
+/* 匿名编号：只用于把同一个人的多次记录串起来，视觉上比输入框弱一档 */
+.uid-box {
+  margin-top: var(--sp-3); padding: var(--box-pad);
+  background: var(--line-soft); border-radius: 10px;
+}
+.uid-line {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px;
+  margin: 0; font-size: var(--fs-sm); color: var(--ink-soft);
+}
+.uid-line code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--fs-sm); color: var(--ink); word-break: break-all;
+}
+.uid-box .fieldnote { margin-top: var(--sp-1); }
+.uid-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin: 0; }
+.uid-actions .copied { margin: 0; }
+
 /* ── 按钮 ── */
 button {
   font: inherit; cursor: pointer;

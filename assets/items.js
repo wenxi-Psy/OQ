@@ -10,6 +10,17 @@
  *          由 score.js 按方向换算，作答者不需要知道哪些题是反向题。
  * naLabel  「不适用」按钮上的文字，逐题写具体，避免被当成"跳过"用
  */
+/* 版本号：条目内容（题干、维度归属、反向标记、关键题、「不适用」规则）
+ * 每次改动条目数据都要 +1，导出文件里带上它，日后回看才知道那份数据是按哪版条目采的。 */
+const OQ_ITEMS_VERSION = '1.0.0';
+
+const OQ_INSTRUMENT = {
+  name: 'OQ-45.2',
+  translation: '秦佑凤、胡姝婧 (2008) 中文版',
+  language: 'zh-CN',
+  item_count: 45,
+};
+
 const OQ_ITEMS = [
   { id: 1,  text: '我与他人相处融洽', dim: 'IR', reverse: true },
   { id: 2,  text: '我容易疲劳', dim: 'SD' },

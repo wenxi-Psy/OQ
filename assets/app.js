@@ -5,9 +5,11 @@
   'use strict';
 
   const STORE_KEY = 'oq45_records_v1';
+  const UID_KEY   = 'oq45_uid_v1';
   const $  = (id) => document.getElementById(id);
   const answers = new Array(45).fill(null);   // 0–4 | 'na' | null
   let current = null;                          // 当前这次的计分结果
+  let startedAt = null;                        // 点「开始填写」的时刻，用于算作答时长
 
   /* ══════════ 运行环境 ══════════ */
 
@@ -77,7 +79,7 @@
     try {
       const raw = localStorage.getItem(STORE_KEY);
       const list = raw ? JSON.parse(raw) : [];
-      return Array.isArray(list) ? list : [];
+      return Array.isArray(list) ? list.map(normalizeRecord) : [];
     } catch (e) {
       return [];   // 隐私模式或存储被禁用时静默降级
     }
@@ -100,6 +102,101 @@
 
   function refreshCount() {
     $('intro-count').textContent = loadRecords().length;
+  }
+
+  /* 一条记录里的逐题作答：新记录存成 { q01: 2, q07: 'na', … } 的对象，
+   * 旧记录只有数组，按题目顺序还原。数组靠位置对齐，题目顺序一旦调整就会整体错位，
+   * 对象靠变量名对齐则不受影响，所以往后一律以 answers 为准。 */
+  function normalizeRecord(rec) {
+    if (!rec || typeof rec !== 'object') return rec;
+    return Object.assign({}, rec, { raw: recordAnswers(rec) });
+  }
+
+  function recordAnswers(rec) {
+    if (rec.answers && typeof rec.answers === 'object') {
+      return OQ_ITEMS.map((it) => {
+        const v = rec.answers[oqVariable(it.id)];
+        return v === undefined ? null : v;
+      });
+    }
+    return Array.isArray(rec.raw) ? rec.raw.slice() : new Array(OQ_ITEMS.length).fill(null);
+  }
+
+  function answersMap(list) {
+    const out = {};
+    OQ_ITEMS.forEach((it, i) => { out[oqVariable(it.id)] = list[i]; });
+    return out;
+  }
+
+  /* ══════════ 匿名编号 ══════════
+   * 存在这台设备上的一串随机字符，不含任何个人信息，也不会上传。
+   * 作用只有一个：把同一个人的多次填写串起来——「编号或昵称」是可以留空、
+   * 也可能每次写得不一样的，靠它做纵向对齐并不可靠。
+   * 换设备时可以把这串字符抄到新设备上，记录就接得上。 */
+
+  const UID_RE = /^[A-Za-z0-9_-]{4,64}$/;
+  let uidCache = null;          // 存不进 localStorage 时至少在本次会话里保持一致
+  let uidPersistent = true;
+
+  function newUid() {
+    const b = new Uint8Array(8);
+    if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(b);
+    else for (let i = 0; i < b.length; i++) b[i] = Math.floor(Math.random() * 256);
+    return 'oq-' + Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+  }
+
+  function getUid() {
+    if (uidCache) return uidCache;
+    let v = null;
+    try { v = localStorage.getItem(UID_KEY); } catch (e) { /* 忽略 */ }
+    if (!v || !UID_RE.test(v)) {
+      v = newUid();
+      uidPersistent = setUid(v);
+    }
+    uidCache = v;
+    return v;
+  }
+
+  function setUid(v) {
+    uidCache = v;
+    try {
+      localStorage.setItem(UID_KEY, v);
+      uidPersistent = true;
+    } catch (e) {
+      uidPersistent = false;    // 无痕模式：本次会话里仍然可用，关掉页面就没了
+    }
+    return uidPersistent;
+  }
+
+  function renderUid() {
+    const uid = getUid();
+    $('uid-value').textContent = uid;
+    $('uid-note').textContent = uidPersistent
+      ? '这台设备自动生成，不含个人信息，也不会上传。导出的 CSV / JSON 里会带上它，'
+        + '咨询师据此就能确认几份数据来自同一个人。换设备时把它抄过去，记录就接得上。'
+      : '浏览器不允许保存数据，这个编号只在本次填写有效；导出文件里仍会带上它。';
+  }
+
+  async function copyUid() {
+    const uid = getUid();
+    try {
+      await navigator.clipboard.writeText(uid);
+      const tip = $('uid-copied');
+      tip.hidden = false;
+      setTimeout(() => { tip.hidden = true; }, 2000);
+    } catch (e) {
+      window.prompt('复制下面这串字符：', uid);
+    }
+  }
+
+  function editUid() {
+    const v = (window.prompt(
+      '把旧设备上的匿名编号填进来，两台设备的记录就能对上。\n\n'
+      + '只允许字母、数字、- 和 _，4–64 位。', getUid()) || '').trim();
+    if (!v) return;
+    if (!UID_RE.test(v)) { window.alert('这个编号不符合格式（字母、数字、- 或 _，4–64 位）。'); return; }
+    setUid(v);
+    renderUid();
   }
 
   /* ══════════ 说明页 ══════════ */
@@ -280,13 +377,24 @@
     const result = oqScore(answers);
     if (!result.valid) { box.hidden = false; box.textContent = result.message; return; }
 
+    const done = new Date();
     current = {
       id: 'r' + Date.now(),
-      ts: new Date().toISOString(),
+      uid: getUid(),
+      uidPersistent,
+      ts: done.toISOString(),
       date: $('meta-date').value || todayISO(),
       name: $('meta-name').value.trim(),
       baseline: $('meta-baseline').checked,
-      raw: answers.slice(),
+      // 作答时长是墙上时间，中途去做别的事也照算，只能当粗略参考。
+      startedAt: startedAt ? new Date(startedAt).toISOString() : null,
+      completedAt: done.toISOString(),
+      durationSec: startedAt ? Math.round((done.getTime() - startedAt) / 1000) : null,
+      tzOffsetMin: -done.getTimezoneOffset(),   // 东八区为 +480
+      itemsVersion: OQ_ITEMS_VERSION,
+      scoringVersion: OQ_SCORING_VERSION,
+      answers: answersMap(answers),             // 按变量名存，不依赖题目顺序
+      raw: answers.slice(),                     // 兼容旧版读取逻辑
       total: result.total,
       dims: result.dims,
       result,
@@ -767,6 +875,7 @@
     L.push('OQ-45.2 结果');
     L.push('填写日期：' + current.date);
     if (current.name) L.push('编号：' + current.name);
+    L.push('匿名编号：' + current.uid + '（同一台设备上多次填写共用，用于对齐纵向记录）');
     if (current.baseline) L.push('（基线）');
     L.push('');
     L.push(`总分：${r.total} / 180　（参考线 62；${r.aboveCutoff ? '达到或超过' : '低于'}参考线）`);
@@ -799,6 +908,8 @@
     L.push('常模：总分划界分 62、可信变化指数 17，李钰静 (2010)；');
     L.push('分量表参考线与严重度分层取自美国常模，仅供参考。');
     L.push('本量表为效果监测工具，不作诊断用途，结果需由受训临床工作者解读。');
+    L.push(`条目版本 ${current.itemsVersion}　计分版本 ${current.scoringVersion}　`
+      + `完成时间 ${current.completedAt}`);
     return L.join('\n');
   }
 
@@ -818,50 +929,145 @@
     return 'OQ45_' + (current.name ? current.name + '_' : '') + current.date;
   }
 
+  /* 一次填写在导出时会摊成四类值，含义写在 OQ_VALUE_KINDS 里：
+   *   raw    作答者勾了什么（0–4；漏答和「不适用」都是空）
+   *   na     是不是选了「不适用」（1 / 0）
+   *   paper  纸质题本上的等价勾选值（正向题 0、反向题 4），便于和纸笔数据并表
+   *   scored 计入总分的值（已反向计分、已填补漏答）
+   * 四类分开列，避免"这一格的 0 到底是他答了不是、还是这题对他不适用、还是漏答被填补了"
+   * 这种事后说不清的情况。 */
+  function itemValues(i) {
+    const v = current.raw[i];
+    const na = v === 'na';
+    return {
+      raw: typeof v === 'number' ? v : null,
+      na,
+      paper: oqPaperValue(i, v),
+      scored: current.result.scored[i],
+    };
+  }
+
   function exportCSV() {
     const r = current.result;
-    const naIds = current.raw.map((v, i) => v === 'na' ? OQ_ITEMS[i].id : null).filter(Boolean);
-    const head = ['日期', '编号', '基线', '总分', 'SD', 'IR', 'SR', '严重度分层', '选了不适用的题号'];
-    const row  = [current.date, current.name, current.baseline ? '是' : '否',
-                  r.total, r.dims.SD, r.dims.IR, r.dims.SR, r.severity.label,
-                  naIds.join(' ')];
-    // 逐题导出纸质题本的等价勾选值，未做反向计分，可直接与纸笔施测数据对齐。
+    const imputedIds = r.imputed.map((x) => x.id);
+    const naIds = [], missingIds = [];
     OQ_ITEMS.forEach((it, i) => {
-      head.push(`q${it.id}(原始未反向)`);
-      const v = oqPaperValue(i, current.raw[i]);
-      row.push(v === null ? '' : v);
+      if (current.raw[i] === 'na') naIds.push(it.id);
+      if (current.raw[i] === null || current.raw[i] === undefined) missingIds.push(it.id);
     });
-    const esc = (v) => `"${String(v).replace(/"/g, '""')}"`;
-    const csv = '﻿' + [head.map(esc).join(','), row.map(esc).join(',')].join('\r\n');
-    download(fileStem() + '.csv', csv, 'text/csv');
+
+    // 表头用英文变量名：CSV 是给统计软件读的，SPSS / R 的变量名不宜用中文。
+    // 每一列的含义见仓库根目录的 codebook.csv 与 README。
+    const cols = [
+      ['user_id',          current.uid],
+      ['record_id',        current.id],
+      ['assessment_date',  current.date],
+      ['label',            current.name],          // 来访者自填的编号或昵称，可为空
+      ['baseline',         current.baseline ? 1 : 0],
+      ['started_at',       current.startedAt || ''],
+      ['completed_at',     current.completedAt],
+      ['duration_sec',     current.durationSec === null ? '' : current.durationSec],
+      ['tz_offset_min',    current.tzOffsetMin],
+      ['instrument',       OQ_INSTRUMENT.name],
+      ['translation',      OQ_INSTRUMENT.translation],
+      ['items_version',    current.itemsVersion],
+      ['scoring_version',  current.scoringVersion],
+      ['export_schema',    OQ_EXPORT_SCHEMA],
+      ['total',            r.total],
+      ['sd',               r.dims.SD],
+      ['ir',               r.dims.IR],
+      ['sr',               r.dims.SR],
+      ['severity',         r.severity.label],
+      ['above_cutoff',     r.aboveCutoff ? 1 : 0],
+      ['n_answered',       r.answered],
+      ['n_missing',        missingIds.length],
+      ['missing_items',    missingIds.join(' ')],
+      ['imputed_items',    imputedIds.join(' ')],
+      ['na_items',         naIds.join(' ')],
+      ['critical_items',   r.critical.map((c) => c.id).join(' ')],
+    ];
+
+    OQ_ITEMS.forEach((it, i) => {
+      const q = oqVariable(it.id), v = itemValues(i);
+      cols.push([q + '_raw',    v.raw === null ? '' : v.raw]);
+      cols.push([q + '_na',     v.na ? 1 : 0]);
+      cols.push([q + '_paper',  v.paper === null ? '' : v.paper]);
+      cols.push([q + '_scored', v.scored === null ? '' : v.scored]);
+    });
+
+    download(fileStem() + '.csv',
+      oqCsvText([cols.map((c) => c[0]), cols.map((c) => c[1])]), 'text/csv');
   }
 
   function exportJSON() {
     const r = current.result;
+    const imputed = new Set(r.imputed.map((x) => x.id));
+
+    // 逐题结果按变量名装成对象，不再是数组：题目顺序日后若有调整，
+    // 靠位置对齐的数据会整体错位，靠 q01–q45 对齐的不会。
+    const responses = {};
+    OQ_ITEMS.forEach((it, i) => {
+      const v = itemValues(i);
+      responses[oqVariable(it.id)] = {
+        item_id: it.id,
+        dimension: it.dim,
+        reverse: !!it.reverse,
+        raw: v.raw,
+        not_applicable: v.na,
+        missing: v.raw === null && !v.na,
+        paper_equivalent: v.paper,
+        scored: v.scored,
+        imputed: imputed.has(it.id),
+      };
+    });
+
     const data = {
-      instrument: 'OQ-45.2',
-      translation: '秦佑凤、胡姝婧 (2008) 中文版',
-      date: current.date,
-      name: current.name || null,
-      baseline: current.baseline,
-      raw_responses_note: '页面上记录的值：0–4 为勾选值，"na" 为「不适用」，null 为漏答。均未反向计分',
-      raw: current.raw,
-      paper_equivalent_note: '把「不适用」换算成纸质题本应勾的值（正向题 0，反向题 4），仍未反向计分',
-      paper_equivalent: current.raw.map((v, i) => oqPaperValue(i, v)),
-      na_items: current.raw.map((v, i) => v === 'na' ? OQ_ITEMS[i].id : null).filter(Boolean),
-      scored_note: '已完成反向计分与漏答填补',
-      scored: r.scored,
-      total: r.total,
-      subscales: r.dims,
-      imputed_items: r.imputed.map((x) => x.id),
-      critical_items: r.critical.map((c) => ({ id: c.id, response: c.value })),
+      schema: 'oq45-export',
+      versions: oqVersions(),
+      instrument: OQ_INSTRUMENT,
+      record: {
+        record_id: current.id,
+        user_id: current.uid,
+        user_id_note: '这台设备上的匿名标识，用于串联同一个人的多次填写；不含个人信息',
+        user_id_persistent: current.uidPersistent !== false,
+        label: current.name || null,
+        baseline: current.baseline,
+        assessment_date: current.date,
+        started_at: current.startedAt,
+        completed_at: current.completedAt,
+        duration_sec: current.durationSec,
+        tz_offset_min: current.tzOffsetMin,
+      },
+      value_kinds: OQ_VALUE_KINDS,
+      responses,
+      scores: {
+        total: r.total,
+        subscales: r.dims,
+        severity: r.severity.label,
+        above_cutoff: r.aboveCutoff,
+        n_answered: r.answered,
+        missing_items: OQ_ITEMS.filter((it, i) => current.raw[i] === null
+          || current.raw[i] === undefined).map((it) => it.id),
+        imputed_items: r.imputed.map((x) => x.id),
+        na_items: OQ_ITEMS.filter((it, i) => current.raw[i] === 'na').map((it) => it.id),
+        critical_items: r.critical.map((c) => ({ id: c.id, raw: c.value })),
+      },
       norms: {
-        total_cutoff: 62, total_rci: 17,
+        total_cutoff: OQ_NORMS.total.cutoff,
+        total_rci: OQ_NORMS.total.rci,
         total_source: '李钰静 (2010) 中国常模',
+        subscale_cutoffs: { SD: OQ_NORMS.SD.cutoff, IR: OQ_NORMS.IR.cutoff, SR: OQ_NORMS.SR.cutoff },
         subscale_source: '美国常模（仅供参考）',
       },
+      codebook: '各题的变量名、维度、计分方向与「不适用」规则见仓库根目录的 codebook.csv，'
+        + '或在结果页点「下载 codebook」',
     };
     download(fileStem() + '.json', JSON.stringify(data, null, 2), 'application/json');
+  }
+
+  /* 条目对照表：和仓库根目录的 codebook.csv 出自同一个函数，内容一致。 */
+  function exportCodebook() {
+    download('OQ45_codebook_v' + OQ_ITEMS_VERSION + '.csv', oqCodebookCSV(), 'text/csv');
   }
 
   /* ══════════ 结果图片 ══════════
@@ -1356,13 +1562,21 @@
     refreshCount();
     renderEnvWarning();
 
-    $('btn-start').addEventListener('click', () => showScreen('screen-form'));
+    renderUid();
+    $('uid-copy').addEventListener('click', copyUid);
+    $('uid-edit').addEventListener('click', editUid);
+
+    $('btn-start').addEventListener('click', () => {
+      if (startedAt === null) startedAt = Date.now();   // 中途返回说明页不重新计时
+      showScreen('screen-form');
+    });
     $('btn-back-intro').addEventListener('click', () => showScreen('screen-intro'));
     $('btn-submit').addEventListener('click', onSubmit);
 
     $('btn-copy').addEventListener('click', copyText);
     $('btn-csv').addEventListener('click', exportCSV);
     $('btn-json').addEventListener('click', exportJSON);
+    $('btn-codebook').addEventListener('click', exportCodebook);
     $('btn-print').addEventListener('click', () => window.print());
     $('btn-image').addEventListener('click', showImage);
 
@@ -1378,6 +1592,7 @@
     $('btn-again').addEventListener('click', () => {
       resetForm();
       refreshCount();
+      startedAt = null;
       showScreen('screen-intro');
     });
 

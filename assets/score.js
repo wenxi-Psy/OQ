@@ -6,6 +6,10 @@
  *   - 中国的分量表划界分与 RCI 未见公开发表
  */
 
+/* 版本号：计分规则（反向计分、「不适用」换算、漏答填补、常模与判定阈值）。
+ * 与 OQ_ITEMS_VERSION 分开记，因为条目不动、只调常模的情况是会发生的。 */
+const OQ_SCORING_VERSION = '1.0.0';
+
 const OQ_NORMS = {
   total: { max: 180, cutoff: 62, rci: 17, source: 'cn' },
   SD:    { max: 100, cutoff: 37, rci: 10, source: 'us', label: '症状困扰', count: 25 },
@@ -24,6 +28,13 @@ const OQ_SEVERITY = [
 
 /* 反向计分：0↔4, 1↔3, 2 不变。只在这里发生一次。 */
 function oqReverse(v) { return 4 - v; }
+
+/* 关键题的跟进阈值：第 8 题（自杀意念）只要不为 0，其余四题「有时」（=2）及以上。
+ * 计分和 codebook 都从这里取，避免两处各写一遍。 */
+function oqCriticalThreshold(item) {
+  if (!item.critical) return null;
+  return item.id === 8 ? 1 : 2;
+}
 
 /**
  * 「不适用」在纸质题本上应勾的选项值。
@@ -99,7 +110,7 @@ function oqScore(raw) {
     if (!item.critical) return;
     const v = raw[i];
     if (typeof v !== 'number') return;
-    const threshold = item.id === 8 ? 1 : 2;
+    const threshold = oqCriticalThreshold(item);
     if (v >= threshold) {
       critical.push({ id: item.id, text: item.text, value: v, label: OQ_OPTIONS[v] });
     }
