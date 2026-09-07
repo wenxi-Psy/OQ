@@ -7,7 +7,7 @@
 <meta name="robots" content="noindex">
 <title>OQ-45.2 心理咨询效果问卷</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23426b78'/%3E%3Cpath d='M8 21.5 L13.5 16 L18.5 19 L24 10' fill='none' stroke='%23fff' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="assets/style.css?v=20260903a">
+<link rel="stylesheet" href="assets/style.css?v=20260907a">
 </head>
 <body>
 
@@ -204,11 +204,10 @@
         <button type="button" class="wide" id="btn-image">保存为图片</button>
         <button type="button" id="btn-copy">复制为文字</button>
         <button type="button" id="btn-print">打印 / 存 PDF</button>
-        <button type="button" id="btn-csv">下载 CSV</button>
-        <button type="button" id="btn-json">下载 JSON</button>
+        <button type="button" id="btn-csv">下载全部记录</button>
       </div>
       <p class="copied" id="copied" hidden>已复制到剪贴板</p>
-      <p class="fieldnote" id="print-note">「打印 / 存 PDF」在电脑上可选「另存为 PDF」，手机上多数只能连打印机。CSV / JSON 供咨询师留档。</p>
+      <p class="fieldnote" id="print-note">「打印 / 存 PDF」在电脑上可选「另存为 PDF」，手机上多数只能连打印机。「下载全部记录」导出这台设备上的历次记录（一个 CSV 表格），供咨询师留档。</p>
     </section>
 
     <details class="card sources">
@@ -220,9 +219,9 @@
         <li>中文版分量表内部一致性偏低（α 0.57–0.91），维度分只作定性线索，不单独作为疗效指标。</li>
         <li>「恢复 / 改善 / 无变化 / 恶化」的判定：Jacobson &amp; Truax (1991)。</li>
         <li>漏答 1–4 题用同维度其余题目均值（四舍五入）填补，≥5 题整份作废。</li>
-        <li>CSV 一题一行，共 45 行：每行左边写明这道题是什么（题干、维度、计分方向、「不适用」换算、关键题阈值），右边是这次答了什么、算成几分，文件自己就说得清自己。</li>
-        <li>作答值分四列，不混在一起：<code>response_raw</code> 勾选的原始值（未反向）、<code>not_applicable</code> 是否选了「不适用」、<code>paper_equivalent</code> 题本等价勾选值（「不适用」正向题记 0、反向题记 4）、<code>scored</code> 计入总分的值（已反向、已填补）。另有 <code>missing</code> 与 <code>imputed</code> 标出哪几题是估算的。</li>
-        <li>JSON 逐题按 <code>q01</code>–<code>q45</code> 装成对象。两份文件都带上条目版本、计分版本与完成时间。</li>
+        <li>「下载全部记录」导出这台设备上的历次记录，排成随访表：<strong>一行一道题，一列一次评估</strong>。上半张是总分、维度分、变化判定、需跟进题号、量表版本；下半张是 45 道题逐题的分数。</li>
+        <li>格子里是<strong>计分值</strong>（已完成反向计分），45 道题方向统一，数字越大困扰越重，横着读一行就是这道题的变化。作答者实际勾的档位可反推：反向题的原始值 = 4 − 计分值，是不是反向题表里有一列。</li>
+        <li>「不适用」记 0 分并在格子里标注，漏答按同维度均值填补后标「估算」——那个 0 不会和真答了「不是」混为一谈。</li>
       </ul>
     </details>
 
@@ -250,9 +249,9 @@
 <!-- ?v= 是缓存版本号：GitHub Pages 给资源发 Cache-Control: max-age=600，
      光更新文件内容的话，浏览器十分钟内仍在用缓存里的旧 JS，页面和代码会对不上。
      改完 assets/ 下任何文件，把这里的 v 一起改掉（日期 + 当天序号即可）。 -->
-<script src="assets/items.js?v=20260903a"></script>
-<script src="assets/score.js?v=20260903a"></script>
-<script src="assets/codebook.js?v=20260903a"></script>
-<script src="assets/app.js?v=20260903a"></script>
+<script src="assets/items.js?v=20260907a"></script>
+<script src="assets/score.js?v=20260907a"></script>
+<script src="assets/export.js?v=20260907a"></script>
+<script src="assets/app.js?v=20260907a"></script>
 </body>
 </html>

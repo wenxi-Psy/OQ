@@ -939,168 +939,79 @@
     return 'OQ45_' + (current.name ? current.name + '_' : '') + current.date;
   }
 
-  /* 一次填写在导出时会摊成四类值，含义写在 OQ_VALUE_KINDS 里：
-   *   raw    作答者勾了什么（0–4；漏答和「不适用」都是空）
-   *   na     是不是选了「不适用」（1 / 0）
-   *   paper  纸质题本上的等价勾选值（正向题 0、反向题 4），便于和纸笔数据并表
-   *   scored 计入总分的值（已反向计分、已填补漏答）
-   * 四类分开列，避免"这一格的 0 到底是他答了不是、还是这题对他不适用、还是漏答被填补了"
-   * 这种事后说不清的情况。 */
-  function itemValues(i) {
-    const v = current.raw[i];
-    const na = v === 'na';
-    return {
-      raw: typeof v === 'number' ? v : null,
-      na,
-      paper: oqPaperValue(i, v),
-      scored: current.result.scored[i],
-    };
-  }
-
-  /* CSV 一次填写导出 45 行，一题一行（长表）。
+  /* 一个文件装下这台设备上的全部记录，排成临床随访表的样子：
+   *   一行一道题，一列一次评估——加一次评估就是加一列，表不会越变越长。
+   *   表格上方先给总分、维度分、变化判定这些整体结果，往下才是逐题明细。
    *
-   * 每行左边写明这道题是什么——题干、维度、是不是反向题、「不适用」怎么换算、
-   * 关键题阈值——右边是这次答了什么、算成了几分，末尾跟上这次施测的公共信息。
-   * 这样一份文件自己就说得清自己，不必再配一张单独的对照表。
+   * 试过两种别的排法，都不如这个：
+   *   「一次一行、逐题 45 列」——题干进不了表，看到 q08 还得另查是哪道题；
+   *   「一题一行、每次重复 45 行」——填写日期会在 45 行里重复 45 遍，纯冗余。
    *
-   * 代价是做纵向分析前要转回宽表：pandas 里
-   * `df.pivot(index='record_id', columns='variable', values='scored')`，
-   * R 里 `pivot_wider()`。多份文件首尾相接就是一张长表，直接能拼。
-   *
-   * 列的排法照「先看谁、再看哪道题、再看答了什么」的顺序，
-   * 在 Excel 里不用横向滚动就能读到关键的几列。
+   * 格子里放的是计分值（已完成反向计分），所以 45 道题方向统一：
+   * 数字越大困扰越重，横着扫一行就知道这道题在变好还是变差。
+   * 作答者实际勾的档位可以反推——反向题的原始值 = 4 − 计分值，是不是反向题表里有一列。
    */
-  const CSV_COLS = [
-    // 谁、哪一次
-    'user_id', 'record_id', 'assessment_date', 'baseline',
-    // 这道题是什么
-    'variable', 'item_id', 'item_text', 'dimension', 'dimension_label', 'reverse',
-    // 这次答了什么、算成几分
-    'response_raw', 'response_label', 'not_applicable', 'missing',
-    'paper_equivalent', 'scored', 'imputed', 'critical_flagged',
-    // 这道题的计分规则（原先单独放在 codebook 里的部分）
-    'response_min', 'response_max', 'response_labels', 'scoring_rule',
-    'na_option', 'na_label', 'na_paper_value', 'na_scored_value',
-    'critical', 'critical_threshold',
-    // 这次施测的总体结果
-    'total', 'sd', 'ir', 'sr', 'severity', 'above_cutoff', 'n_answered', 'n_missing',
-    // 出处与版本
-    'label', 'started_at', 'completed_at', 'duration_sec', 'tz_offset_min',
-    'instrument', 'translation', 'items_version', 'scoring_version', 'export_schema',
-  ];
+
+  /* 按时间排好的全部记录。存储被禁用时这次的记录进不了 localStorage，手动补上。 */
+  function allRecords() {
+    const list = loadRecords();
+    if (current && !list.some((x) => x.id === current.id)) list.push(current);
+    return list.sort((a, b) => String(a.ts || a.date).localeCompare(String(b.ts || b.date)));
+  }
 
   function exportCSV() {
-    const r = current.result;
-    const cb = oqCodebook().rows;                        // 每题的说明字段
-    const imputed = new Set(r.imputed.map((x) => x.id));
-    const flagged = new Set(r.critical.map((c) => c.id));
+    // 逐题作答存着，分数每次重算——旧记录只存了总分，重算才能拿到逐题分与关键题
+    const cols = allRecords().map((rec) => {
+      const raw = recordAnswers(rec);
+      const r = oqScore(raw);
+      return { rec, raw, r: r.valid ? r : null };
+    });
 
-    // 施测级信息，45 行里逐行重复——长表就是这么用的，pivot 回去时它们是索引
-    const shared = {
-      user_id: current.uid,
-      record_id: current.id,
-      assessment_date: current.date,
-      label: current.name,
-      baseline: current.baseline ? 1 : 0,
-      total: r.total, sd: r.dims.SD, ir: r.dims.IR, sr: r.dims.SR,
-      severity: r.severity.label,
-      above_cutoff: r.aboveCutoff ? 1 : 0,
-      n_answered: r.answered,
-      n_missing: OQ_ITEMS.length - r.answered,
-      started_at: current.startedAt || '',
-      completed_at: current.completedAt,
-      duration_sec: current.durationSec === null ? '' : current.durationSec,
-      tz_offset_min: current.tzOffsetMin,
-      instrument: OQ_INSTRUMENT.name,
-      translation: OQ_INSTRUMENT.translation,
-      items_version: current.itemsVersion,
-      scoring_version: current.scoringVersion,
-      export_schema: OQ_EXPORT_SCHEMA,
-    };
+    const head = ['题号', '题目', '维度', '反向题'];
+    cols.forEach((c, i) => head.push(`第${i + 1}次 ${c.rec.date || ''}`));
+    const rows = [head];
 
-    const rows = OQ_ITEMS.map((item, i) => {
-      const v = itemValues(i);
-      return Object.assign({}, cb[i], shared, {
-        // 作答者勾的那一档，同时给数值和中文标签，不用回头查对照表
-        response_raw: v.raw === null ? '' : v.raw,
-        response_label: v.na ? '不适用' : (v.raw === null ? '' : OQ_OPTIONS[v.raw]),
-        not_applicable: v.na ? 1 : 0,
-        missing: (v.raw === null && !v.na) ? 1 : 0,
-        paper_equivalent: v.paper === null ? '' : v.paper,
-        scored: v.scored === null ? '' : v.scored,
-        imputed: imputed.has(item.id) ? 1 : 0,
-        critical_flagged: flagged.has(item.id) ? 1 : 0,
+    // 上半张表：整体结果。题号列留空，指标名写在「题目」那一列。
+    const summary = (label, fn) => rows.push(['', label, '', ''].concat(cols.map(fn)));
+    const totalOf = (c) => c.r ? c.r.total : (typeof c.rec.total === 'number' ? c.rec.total : null);
+
+    summary('总分', (c) => totalOf(c) === null ? '' : totalOf(c));
+    ['SD', 'IR', 'SR'].forEach((k) => summary(`${OQ_NORMS[k].label} ${k}`,
+      (c) => c.r ? c.r.dims[k] : (c.rec.dims && c.rec.dims[k] !== undefined ? c.rec.dims[k] : '')));
+    summary('严重度', (c) => c.r ? c.r.severity.label : '');
+    summary('较上次', (c, i) => {
+      if (i === 0) return c.rec.baseline ? '首次（基线）' : '首次';
+      const t1 = totalOf(cols[i - 1]), t2 = totalOf(c);
+      if (t1 === null || t2 === null) return '';
+      const cmp = oqCompare(t1, t2);
+      // delta = 上次 − 这次，正值表示分数下降、也就是好转
+      const sign = cmp.delta > 0 ? '−' + cmp.delta : cmp.delta < 0 ? '+' + (-cmp.delta) : '±0';
+      return `${sign} ${cmp.label}`;
+    });
+    summary('需跟进', (c) => c.r ? c.r.critical.map((x) => `第${x.id}题 ${x.label}`).join('｜') : '');
+    summary('不适用题号', (c) => c.raw
+      .map((v, i) => v === 'na' ? OQ_ITEMS[i].id : null).filter(Boolean).join(' '));
+    summary('漏答题号', (c) => c.r ? c.r.imputed.map((x) => x.id).join(' ') : '');
+    summary('提交时刻', (c) => c.rec.completedAt ? localStamp(c.rec.completedAt).slice(11) : '');
+    summary('量表版本', (c) => c.rec.itemsVersion
+      ? `条目${c.rec.itemsVersion}／计分${c.rec.scoringVersion}` : '');
+    rows.push(head.map(() => ''));                     // 空行，把两半分开
+
+    // 下半张表：逐题。「不适用」和漏答填补在格子里标出来，免得那个 0 被当成真答了「不是」
+    OQ_ITEMS.forEach((item, i) => {
+      const row = [item.id, item.text, OQ_NORMS[item.dim].label, item.reverse ? '是' : ''];
+      cols.forEach((c) => {
+        if (!c.r) { row.push(''); return; }
+        const v = c.raw[i], scored = c.r.scored[i];
+        if (v === 'na') row.push(scored + ' 不适用');
+        else if (v === null || v === undefined) row.push(scored + ' 估算');
+        else row.push(scored);
       });
+      rows.push(row);
     });
 
-    const table = [CSV_COLS].concat(rows.map((row) => CSV_COLS.map((c) => row[c])));
-    download(fileStem() + '.csv', oqCsvText(table), 'text/csv');
-  }
-
-  function exportJSON() {
-    const r = current.result;
-    const imputed = new Set(r.imputed.map((x) => x.id));
-
-    // 逐题结果按变量名装成对象，不再是数组：题目顺序日后若有调整，
-    // 靠位置对齐的数据会整体错位，靠 q01–q45 对齐的不会。
-    const responses = {};
-    OQ_ITEMS.forEach((it, i) => {
-      const v = itemValues(i);
-      responses[oqVariable(it.id)] = {
-        item_id: it.id,
-        dimension: it.dim,
-        reverse: !!it.reverse,
-        raw: v.raw,
-        not_applicable: v.na,
-        missing: v.raw === null && !v.na,
-        paper_equivalent: v.paper,
-        scored: v.scored,
-        imputed: imputed.has(it.id),
-      };
-    });
-
-    const data = {
-      schema: 'oq45-export',
-      versions: oqVersions(),
-      instrument: OQ_INSTRUMENT,
-      record: {
-        record_id: current.id,
-        user_id: current.uid,
-        user_id_note: '这台设备上的匿名标识，用于串联同一个人的多次填写；不含个人信息',
-        user_id_persistent: current.uidPersistent !== false,
-        label: current.name || null,
-        baseline: current.baseline,
-        assessment_date: current.date,
-        started_at: current.startedAt,
-        completed_at: current.completedAt,
-        duration_sec: current.durationSec,
-        tz_offset_min: current.tzOffsetMin,
-      },
-      value_kinds: OQ_VALUE_KINDS,
-      responses,
-      scores: {
-        total: r.total,
-        subscales: r.dims,
-        severity: r.severity.label,
-        above_cutoff: r.aboveCutoff,
-        n_answered: r.answered,
-        missing_items: OQ_ITEMS.filter((it, i) => current.raw[i] === null
-          || current.raw[i] === undefined).map((it) => it.id),
-        imputed_items: r.imputed.map((x) => x.id),
-        na_items: OQ_ITEMS.filter((it, i) => current.raw[i] === 'na').map((it) => it.id),
-        critical_items: r.critical.map((c) => ({ id: c.id, raw: c.value })),
-      },
-      norms: {
-        total_cutoff: OQ_NORMS.total.cutoff,
-        total_rci: OQ_NORMS.total.rci,
-        total_source: '李钰静 (2010) 中国常模',
-        subscale_cutoffs: { SD: OQ_NORMS.SD.cutoff, IR: OQ_NORMS.IR.cutoff, SR: OQ_NORMS.SR.cutoff },
-        subscale_source: '美国常模（仅供参考）',
-      },
-      codebook: '各题的变量名、维度、计分方向、「不适用」换算与关键题阈值，'
-        + '在 CSV 导出里逐行都带；本文件的 responses 每题也给了 dimension 与 reverse',
-    };
-    download(fileStem() + '.json', JSON.stringify(data, null, 2), 'application/json');
+    download('OQ45_全部记录_' + (current ? current.date : todayISO()) + '.csv',
+      oqCsvText(rows), 'text/csv');
   }
 
   /* ══════════ 结果图片 ══════════
@@ -1608,7 +1519,6 @@
 
     $('btn-copy').addEventListener('click', copyText);
     $('btn-csv').addEventListener('click', exportCSV);
-    $('btn-json').addEventListener('click', exportJSON);
     $('btn-print').addEventListener('click', () => window.print());
     $('btn-image').addEventListener('click', showImage);
 
